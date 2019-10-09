@@ -10,7 +10,7 @@ import {
 } from './utils'
 
 describe('event', () => {
-  test('普通绑定', () => {
+  test('普通绑定', () => {
     const { template, ast } = transform({
       ...baseOptions,
       code: buildComponent(
@@ -30,7 +30,7 @@ describe('event', () => {
     expect(template).toMatch(`bindtap="handleClick"`)
   })
 
-  test('bind 绑定', () => {
+  test('bind 绑定', () => {
     const { template, ast, code } = transform({
       ...baseOptions,
       code: buildComponent(
@@ -50,10 +50,10 @@ describe('event', () => {
     expect(instance.state).toEqual({})
     expect(template).toMatch(`bindtap="handleClick"`)
     expect(instance.$$events).toEqual(['handleClick'])
-    expect(template).toMatch(`data-e-handleClick-so="this"`)
+    expect(template).toMatch(`data-e-tap-so="this"`)
   })
 
-  test('bind 绑定支持写数字', () => {
+  test('bind 绑定支持写数字', () => {
     const { template, ast, code } = transform({
       ...baseOptions,
       code: buildComponent(
@@ -71,10 +71,10 @@ describe('event', () => {
     removeShadowData(instance.state)
     expect(instance.state).toEqual({})
     expect(instance.$$events).toEqual(['handleClick'])
-    expect(template).toMatch(`data-e-handleClick-a-a="{{666}}`)
+    expect(template).toMatch(`data-e-tap-a-a="{{666}}`)
   })
 
-  test('bind 绑定支持写数字 2', () => {
+  test('bind 绑定支持写数字 2', () => {
     const { template, ast, code } = transform({
       ...baseOptions,
       code: buildComponent(
@@ -92,11 +92,11 @@ describe('event', () => {
     removeShadowData(instance.state)
     expect(instance.state).toEqual({})
     expect(instance.$$events).toEqual(['handleClick'])
-    expect(template).toMatch(`data-e-handleClick-a-a="{{666}}`)
-    expect(template).toMatch(`data-e-handleClick-a-b="{{777}}`)
+    expect(template).toMatch(`data-e-tap-a-a="{{666}}`)
+    expect(template).toMatch(`data-e-tap-a-b="{{777}}`)
   })
 
-  test('bind 绑定支持写字面量对象', () => {
+  test('bind 绑定支持写字面量对象', () => {
     const { template, ast, code } = transform({
       ...baseOptions,
       code: buildComponent(
@@ -115,7 +115,7 @@ describe('event', () => {
     expect(instance.state).toEqual({ anonymousState__temp: { a: 1 } })
     expect(instance.$$events).toEqual(['handleClick'])
     expect(template).toMatch(
-      `data-e-handleClick-a-a=\"{{anonymousState__temp}}`
+      `data-e-tap-a-a=\"{{anonymousState__temp}}`
     )
     // expect(template).toMatch(`data-e-handleClick-a-b="{{777}}`)
   })

@@ -12,14 +12,14 @@ const doubled = numbers.map((number) => number * 2)
 console.log(doubled)
 ```
 
-代码打印出`[2, 4, 6, 8, 10]`。
+代码打印出 `[2, 4, 6, 8, 10]`。
 
-在 `Taro` 中，把数组转化为数列元素的过程是相似的。
+在 Taro 中，把数组转化为数列元素的过程是相似的。
 
 
 ## 渲染多个组件
 
-下面，我们使用 JavaScript 中的 `map()` 方法遍历 `numbers` 数组。对数组中的每个元素返回`<Text>`标签，最后我们得到一个数组 `listItems`：
+下面，我们使用 JavaScript 中的 `map()` 方法遍历 `numbers` 数组。对数组中的每个元素返回 `<Text>` 标签，最后我们得到一个数组 `listItems`：
 
 ```jsx
 const numbers = [...Array(100).keys()] // [0, 1, 2, ..., 98, 99]
@@ -43,6 +43,25 @@ const listItems = numbers.map((number) => {
     >
     我是第 {number + 1} 个数字
   </Text>
+})
+```
+
+## taroKeys
+
+`taroKey` 适用于循环渲染原生小程序组件，赋予每个元素唯一确定标识，转换为小程序的 `wx:key`。
+
+```jsx
+const numbers = [...Array(100).keys()] // [0, 1, 2, ..., 98, 99]
+const listItems = numbers.map((number) => {
+  return (
+    // native component
+    <g-list
+      taroKey={String(number)}
+      className='g-list'
+    >
+    我是第 {number + 1} 个数字
+    </g-list>
+  )
 })
 ```
 

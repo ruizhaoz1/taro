@@ -27,7 +27,17 @@ const DEVICE_RATIO = {
 }
 ```
 
-建议使用 Taro 时，设计稿以 iPhone6 `750px` 作为设计尺寸标准。
+建议使用 Taro 时，设计稿以 iPhone 6 `750px` 作为设计尺寸标准。
+
+如果你的设计稿是 `375` ，不在以上三种之中，那么你需要把 `designWidth` 配置为 `375`，同时在 `DEVICE_RATIO` 中添加换算规则如下：
+```jsx
+const DEVICE_RATIO = {
+  '640': 2.34 / 2,
+  '750': 1,
+  '828': 1.81 / 2,
+  '375': 2 / 1
+}
+```
 
 ## API
 
@@ -58,12 +68,15 @@ Taro.pxTransform(10) // 小程序：rpx，H5：rem
 Type: `Object | Null`
 
 ### `onePxTransform` (Boolean)
+
 设置 1px 是否需要被转换
 
 ### `unitPrecision` (Number)
+
 REM 单位允许的小数位。
 
 ### `propList` (Array)
+
 允许转换的属性。
 
 - Values need to be exact matches.
@@ -73,6 +86,7 @@ REM 单位允许的小数位。
 - Combine the "not" prefix with the other prefixes. Example: `['*', '!font*']`
 
 ### `selectorBlackList`
+
 黑名单里的选择器将会被忽略。
 
 - If value is string, it checks to see if selector contains the string.
@@ -81,14 +95,16 @@ REM 单位允许的小数位。
   - `[/^body$/]` will match `body` but not `.body`
 
 ### `replace` (Boolean)
+
 直接替换而不是追加一条进行覆盖。
 
 ### `mediaQuery` (Boolean)
+
 允许媒体查询里的 px 单位转换
 
 ### `minPixelValue` (Number)
-设置一个可被转换的最小 px 值
 
+设置一个可被转换的最小 px 值
 
 配置规则对应到 `config/index.js` ，例如：
 
@@ -128,16 +144,18 @@ REM 单位允许的小数位。
 ```
 
 ## 忽略
+
 ### 属性
+
 当前忽略单个属性的最简单的方法，就是 px 单位使用大写字母。
 
 ```css
- /*`px` is converted to `rem`*/
+ /* `px` is converted to `rem` */
 .convert {
   font-size: 16px; // converted to 1rem
 }
 
- /* `Px` or `PX` is ignored by `postcss-pxtorem` but still accepted by browsers*/
+ /* `Px` or `PX` is ignored by `postcss-pxtorem` but still accepted by browsers */
 .ignore {
   border: 1Px solid; // ignored
   border-width: 2PX; // ignored
@@ -145,5 +163,5 @@ REM 单位允许的小数位。
 ```
 
 ### 文件
-对于头部包含注释`/*postcss-pxtransform disable*/` 的文件，插件不予处理。
 
+对于头部包含注释 `/*postcss-pxtransform disable*/` 的文件，插件不予处理。

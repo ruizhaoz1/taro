@@ -1,14 +1,34 @@
 import * as t from 'babel-types'
 import traverse, { NodePath, Visitor } from 'babel-traverse'
-import * as template from 'babel-template'
 import { buildImportStatement, codeFrameError, buildRender, buildBlockElement, parseCode } from './utils'
 import { WXS } from './wxml'
-import { PageLifecycle, Lifecycle } from './lifecycle'
 import { usedComponents } from './global'
 
-const buildDecorator = (type: string) => t.decorator(
-  t.callExpression(t.identifier('withWeapp'), [t.stringLiteral(type)])
+const defaultClassName = '_C'
+
+const buildDecorator = (id: t.Identifier | t.ObjectExpression) => t.decorator(
+  t.callExpression(t.identifier('withWeapp'), [id])
 )
+
+function replaceIdentifier (callee: NodePath<t.Node>) {
+  if (callee.isIdentifier()) {
+    const name = callee.node.name
+    if (name === 'getApp' || name === 'getCurrentPages') {
+      callee.replaceWith(
+        t.memberExpression(t.identifier('Taro'), callee.node)
+      )
+    }
+  }
+}
+
+function replaceMemberExpression (callee: NodePath<t.Node>) {
+  if (callee.isMemberExpression()) {
+    const object = callee.get('object')
+    if (object.isIdentifier({ name: 'wx' })) {
+      object.replaceWith(t.identifier('Taro'))
+    }
+  }
+}
 
 export function parseScript (
   script?: string,
@@ -30,22 +50,15 @@ export function parseScript (
     BlockStatement (path) {
       path.scope.rename('wx', 'Taro')
     },
+    Identifier (path) {
+      if (path.isReferenced() && path.node.name === 'wx') {
+        path.replaceWith(t.identifier('Taro'))
+      }
+    },
     CallExpression (path) {
       const callee = path.get('callee')
-      if (callee.isIdentifier()) {
-        const name = callee.node.name
-        if (name === 'getApp' || name === 'getCurrentPages') {
-          callee.replaceWith(
-            t.memberExpression(t.identifier('Taro'), callee.node)
-          )
-        }
-      }
-      if (callee.isMemberExpression()) {
-        const object = callee.get('object')
-        if (object.isIdentifier({ name: 'wx' })) {
-          object.replaceWith(t.identifier('Taro'))
-        }
-      }
+      replaceIdentifier(callee)
+      replaceMemberExpression(callee)
       if (
         callee.isIdentifier({ name: 'Page' }) ||
         callee.isIdentifier({ name: 'Component' }) ||
@@ -58,11 +71,9 @@ export function parseScript (
           returned || t.nullLiteral(),
           json,
           componentType,
-          refId
-        )!
-        if (componentType !== 'App') {
-          classDecl.decorators = [buildDecorator(componentType)]
-        }
+          refId,
+          wxses
+        )
         ast.program.body.push(
           classDecl,
           t.exportDefaultDeclaration(t.identifier(componentType !== 'App' ? defaultClassName : 'App'))
@@ -99,57 +110,20 @@ export function parseScript (
   return ast
 }
 
-const defaultClassName = '_C'
-
-const staticProps = ['externalClasses', 'relations', 'options']
-
 function parsePage (
   pagePath: NodePath<t.CallExpression>,
   returned: t.Expression,
   json?: t.ObjectExpression,
   componentType?: string,
-  refId?: Set<string>
+  refId?: Set<string>,
+  wxses?: WXS[]
 ) {
   const stateKeys: string[] = []
-  let methods: NodePath<
-    t.ObjectProperty | t.ObjectMethod
-  >[] = []
   pagePath.traverse({
     CallExpression (path) {
       const callee = path.get('callee')
-      if (callee.isIdentifier()) {
-        const name = callee.node.name
-        if (name === 'getApp' || name === 'getCurrentPages') {
-          callee.replaceWith(
-            t.memberExpression(t.identifier('Taro'), callee.node)
-          )
-        }
-      }
-      if (callee.isMemberExpression()) {
-        const object = callee.get('object')
-        if (object.isIdentifier()) {
-          const methodName = object.node.name
-          const hooks = ['onLoad', 'onShow', 'onReady', 'onHide', 'onUnload', 'onError', 'onLaunch']
-          hooks.forEach(hook => {
-            if (methodName === hook) {
-              object.replaceWith(t.identifier(PageLifecycle.get(methodName)!))
-            }
-          })
-          if (methodName === 'wx') {
-            object.replaceWith(t.identifier('Taro'))
-          }
-        }
-      }
-    },
-    ObjectProperty (path) {
-      const { key, value } = path.node
-      if (!t.isIdentifier(key, { name: 'methods' }) || path.parentPath !== pagePath.get('arguments')[0] || !t.isObjectExpression(value)) {
-        return
-      }
-      methods = path.get('value.properties') as NodePath<
-        t.ObjectProperty | t.ObjectMethod
-      >[]
-      path.remove()
+      replaceIdentifier(callee)
+      replaceMemberExpression(callee)
     }
   })
   if (refId) {
@@ -161,193 +135,23 @@ function parsePage (
   }
   const propsKeys: string[] = []
   const arg = pagePath.get('arguments')[0]
-  if (!arg || !arg.isObjectExpression()) {
-    throw codeFrameError(arg.node, `${componentType || '组件'} 的第一个参数必须是一个对象才能转换。`)
-  }
-  const defaultProps: { name: string, value: any }[] = []
-  const props = arg.get('properties')
-  const properties = props.filter(p => !p.isSpreadProperty()).concat(methods) as NodePath<
-    t.ObjectProperty | t.ObjectMethod
-  >[]
 
-  let classBody = properties.map(prop => {
-    const key = prop.get('key')
-    const value = prop.get('value')
-    const params = prop.isObjectMethod()
-      ? prop.node.params
-      : value.isFunctionExpression() || value.isArrowFunctionExpression()
-        ? value.node.params
-        : []
-    const isAsync = prop.isObjectMethod()
-      ? prop.node.async
-      : value.isFunctionExpression() || value.isArrowFunctionExpression()
-        ? value.node.async
-        : false
-    if (!key.isIdentifier()) {
-      throw codeFrameError(key.node, 'Page 对象的键值只能是字符串')
-    }
-    const name = key.node.name
-    const currentStateKeys: string[] = []
-    if (name === 'data') {
-      if (value.isObjectExpression()) {
-        value
-          .get('properties')
-          .map(p => p.node)
-          .forEach(prop => {
-            if (t.isObjectProperty(prop)) {
-              if (t.isStringLiteral(prop.key)) {
-                currentStateKeys.push(prop.key.value)
-              }
-              if (t.isIdentifier(prop.key)) {
-                currentStateKeys.push(prop.key.name)
-              }
-            }
-          })
-      }
-      return t.classProperty(t.identifier('state'), value.node)
-    }
-    if (name === 'properties') {
-      const observeProps: { name: string, observer: any }[] = []
-      if (value.isObjectExpression()) {
-        value
-          .get('properties')
-          .map(p => p.node)
-          .forEach(prop => {
-            if (t.isObjectProperty(prop)) {
-              let propKey: string | null = null
-              if (t.isStringLiteral(prop.key)) {
-                propKey = prop.key.value
-              }
-              if (t.isIdentifier(prop.key)) {
-                propKey = prop.key.name
-                // propsKeys.push(prop.key.name)
-              }
-              if (t.isObjectExpression(prop.value) && propKey) {
-                for (const p of prop.value.properties) {
-                  if (t.isObjectProperty(p)) {
-                    let key: string | null = null
-                    if (t.isStringLiteral(p.key)) {
-                      key = p.key.value
-                    }
-                    if (t.isIdentifier(p.key)) {
-                      key = p.key.name
-                    }
-                    if (key === 'value') {
-                      defaultProps.push({
-                        name: propKey,
-                        value: p.value
-                      })
-                    } else if (key === 'observer') {
-                      observeProps.push({
-                        name: propKey,
-                        observer: p.value
-                      })
-                    }
-                  }
-                }
-              }
-              if (propKey) {
-                propsKeys.push(propKey)
-              }
-            }
-          })
-      }
-      currentStateKeys.forEach(s => {
-        if (propsKeys.includes(s)) {
-          throw new Error(`当前 Component 定义了重复的 data 和 properites: ${s}`)
-        }
-      })
-      stateKeys.push(...currentStateKeys)
-      return t.classProperty(t.identifier('_observeProps'), t.arrayExpression(
-        observeProps.map(p => t.objectExpression([
-          t.objectProperty(
-            t.identifier('name'),
-            t.stringLiteral(p.name)
-          ),
-          t.objectProperty(
-            t.identifier('observer'),
-            p.observer
-          )
-        ]))
-      ))
-    }
-    if (PageLifecycle.has(name)) {
-      const lifecycle = PageLifecycle.get(name)!
-      const node = value.node as
-        | t.FunctionExpression
-        | t.ArrowFunctionExpression
-      const method = t.classMethod(
-        'method',
-        t.identifier(lifecycle),
-        params,
-        node ? node.body as t.BlockStatement : (prop.get('body') as any).node
-      )
-      method.async = isAsync
-      return method
-    }
-    if (prop.isObjectMethod()) {
-      const body = prop.get('body')
-      return t.classProperty(
-        t.identifier(name),
-        t.arrowFunctionExpression(params, body.node, isAsync)
-      )
-    }
-    const classProp = t.classProperty(
-      t.identifier(name),
-      value.isFunctionExpression() || value.isArrowFunctionExpression()
-        ? t.arrowFunctionExpression(value.node.params, value.node.body, isAsync)
-        : value.node
-    ) as any
-
-    if (staticProps.includes(name)) {
-      classProp.static = true
-    }
-
-    return classProp
-  })
-
-  if (defaultProps.length) {
-    let classProp = t.classProperty(t.identifier('defaultProps'), t.objectExpression(
-      defaultProps.map(p => t.objectProperty(t.identifier(p.name), p.value))
-    )) as any
-    classProp.static = true
-    classBody.unshift(classProp)
+  const classBody: any[] = []
+  if (arg.isObjectExpression() || arg.isIdentifier()) {
+    //
+  } else {
+    throw codeFrameError(arg.node, `${componentType || '组件'} 的第一个参数必须是一个对象或变量才能转换。`)
   }
 
   if (json && t.isObjectExpression(json)) {
     classBody.push(t.classProperty(t.identifier('config'), json))
   }
 
-  if (componentType === 'App') {
-    let hasWillMount = false
-    const globalData = template(`this.$app.globalData = this.globalData`)()
-    for (const method of classBody) {
-      if (!method) {
-        continue
-      }
-      if (!t.isClassMethod(method)) {
-        continue
-      }
-      if (t.isIdentifier(method.key, { name: Lifecycle.componentWillMount })) {
-        hasWillMount = true
-        method.body.body.unshift(globalData)
-      }
-    }
-    if (!hasWillMount) {
-      classBody.push(
-        t.classMethod(
-          'method',
-          t.identifier(Lifecycle.componentWillMount),
-          [],
-          t.blockStatement([globalData])
-        )
-      )
-    }
-  }
+  const wxsNames = new Set(wxses ? wxses.map(w => w.module) : [])
 
-  const renderFunc = buildRender(returned, stateKeys, propsKeys)
+  const renderFunc = buildRender(returned, stateKeys.filter(s => !wxsNames.has(s)), propsKeys)
 
-  return t.classDeclaration(
+  const classDecl = t.classDeclaration(
     t.identifier(componentType === 'App' ? 'App' : defaultClassName),
     t.memberExpression(t.identifier('Taro'), t.identifier('Component')),
     t.classBody(
@@ -355,4 +159,8 @@ function parsePage (
     ),
     []
   )
+
+  classDecl.decorators = [buildDecorator(arg.node)]
+
+  return classDecl
 }

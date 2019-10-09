@@ -1,5 +1,3 @@
-const path = require('path')
-
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
@@ -8,7 +6,6 @@ module.exports = {
     window: true
   },
   moduleNameMapper: {
-    'nervjs': path.join(__dirname, 'node_modules', 'nervjs')
-    // 'nervjs': require.resolve('nervjs')
+    'nervjs': '<rootDir>/node_modules/nervjs'
   }
-};
+}

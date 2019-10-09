@@ -11,9 +11,11 @@ module.exports = {
     my: true,
     swan: true,
     tt: true,
+    qq: true,
     getApp: true,
     __wxRoute: true,
-    getCurrentPages: true
+    getCurrentPages: true,
+    requirePlugin: true
   },
   rules: {
     'no-unused-expressions': 0,

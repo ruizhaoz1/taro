@@ -2,7 +2,8 @@ import {
   onAndSyncApis,
   noPromiseApis,
   otherApis,
-  initPxTransform
+  initPxTransform,
+  Link
 } from '@tarojs/taro'
 
 const RequestQueue = {
@@ -33,6 +34,12 @@ const RequestQueue = {
     }
   }
 }
+
+function taroInterceptor (chain) {
+  return request(chain.requestParams)
+}
+
+const link = new Link(taroInterceptor)
 
 function request (options) {
   options = options || {}
@@ -133,14 +140,27 @@ function processApis (taro) {
       }
     } else {
       taro[key] = (...args) => {
-        return swan[key].apply(swan, args)
+        const argsLen = args.length
+        const newArgs = args.concat()
+        const lastArg = newArgs[argsLen - 1]
+        if (lastArg && lastArg.isTaroComponent && lastArg.$scope) {
+          newArgs.splice(argsLen - 1, 1, lastArg.$scope)
+        }
+        return swan[key].apply(swan, newArgs)
       }
     }
   })
 }
 
 function pxTransform (size) {
-  const { designWidth, deviceRatio } = this.config
+  const {
+    designWidth = 750,
+    deviceRatio = {
+      '640': 2.34 / 2,
+      '750': 1,
+      '828': 1.81 / 2
+    }
+  } = this.config || {}
   if (!(designWidth in deviceRatio)) {
     throw new Error(`deviceRatio 配置中不存在 ${designWidth} 的设置！`)
   }
@@ -149,7 +169,9 @@ function pxTransform (size) {
 
 export default function initNativeApi (taro) {
   processApis(taro)
-  taro.request = request
+  taro.request = link.request.bind(link)
+  taro.addInterceptor = link.addInterceptor.bind(link)
+  taro.cleanInterceptors = link.cleanInterceptors.bind(link)
   taro.getCurrentPages = getCurrentPages
   taro.getApp = getApp
   taro.initPxTransform = initPxTransform.bind(taro)

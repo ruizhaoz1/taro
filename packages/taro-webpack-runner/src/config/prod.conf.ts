@@ -1,13 +1,12 @@
 import * as path from 'path';
+import { get, mapValues, merge } from 'lodash'
 
-import { addTrailingSlash, appPath, emptyObj } from '../util';
+import { addTrailingSlash, emptyObj } from '../util';
 import {
+  getCopyWebpackPlugin,
   getCssoWebpackPlugin,
   getDefinePlugin,
   getDevtool,
-  getDllReferencePlugins,
-  getEntry,
-  getHtmlWebpackIncludeAssetsPlugin,
   getHtmlWebpackPlugin,
   getMiniCssExtractPlugin,
   getModule,
@@ -18,27 +17,24 @@ import {
 import { BuildConfig } from '../util/types';
 import getBaseChain from './base.conf';
 
-export default function (config: Partial<BuildConfig>): any {
-  const chain = getBaseChain()
+export default function (appPath: string, config: Partial<BuildConfig>): any {
+  const chain = getBaseChain(appPath)
   const {
     alias = emptyObj,
+    copy,
     entry = emptyObj,
     output = emptyObj,
     sourceRoot = '',
-    outputRoot,
+    outputRoot = 'dist',
     publicPath = '',
     staticDirectory = 'static',
     chunkDirectory = 'chunk',
-    dllDirectory = 'lib',
-    dllEntry = {
-      lib: ['nervjs', '@tarojs/taro-h5', '@tarojs/router', '@tarojs/components']
-    },
+    router = emptyObj,
 
     designWidth = 750,
     deviceRatio,
     enableSourceMap = false,
     enableExtract = true,
-    enableDll = true,
 
     defineConstants = emptyObj,
     env = emptyObj,
@@ -62,6 +58,8 @@ export default function (config: Partial<BuildConfig>): any {
     }
   } = config
 
+  const isMultiRouterMode = get(router, 'mode') === 'multi'
+
   const plugin: any = {}
 
   if (enableExtract) {
@@ -71,10 +69,24 @@ export default function (config: Partial<BuildConfig>): any {
     }, miniCssExtractPluginOption])
   }
 
-  plugin.htmlWebpackPlugin = getHtmlWebpackPlugin([{
-    filename: 'index.html',
-    template: path.join(appPath, sourceRoot, 'index.html')
-  }])
+  if (copy) {
+    plugin.copyWebpackPlugin = getCopyWebpackPlugin({ copy, appPath })
+  }
+
+  if (isMultiRouterMode) {
+    merge(plugin, mapValues(entry, (filePath, entryName) => {
+      return getHtmlWebpackPlugin([{
+        filename: `${entryName}.html`,
+        template: path.join(appPath, sourceRoot, 'index.html'),
+        chunks: [entryName]
+      }])
+    }))
+  } else {
+    plugin.htmlWebpackPlugin = getHtmlWebpackPlugin([{
+      filename: 'index.html',
+      template: path.join(appPath, sourceRoot, 'index.html')
+    }])
+  }
 
   plugin.definePlugin = getDefinePlugin([processEnvOption(env), defineConstants])
 
@@ -84,23 +96,6 @@ export default function (config: Partial<BuildConfig>): any {
 
   if (isCssoEnabled) {
     plugin.cssoWebpackPlugin = getCssoWebpackPlugin([plugins.csso ? plugins.csso.config : {}])
-  }
-
-  if (enableDll) {
-    Object.assign(plugin, getDllReferencePlugins({
-      dllDirectory,
-      dllEntry,
-      outputRoot
-    }))
-    const dllFiles = Object.keys(dllEntry).map(v => {
-      return path.join(dllDirectory, `${v}.dll.js`)
-    })
-    if (dllFiles.length) {
-      plugin.addAssetHtmlWebpackPlugin = getHtmlWebpackIncludeAssetsPlugin({
-        append: false,
-        assets: dllFiles
-      })
-    }
   }
 
   const mode = 'production'
@@ -120,14 +115,14 @@ export default function (config: Partial<BuildConfig>): any {
   chain.merge({
     mode,
     devtool: getDevtool(enableSourceMap),
-    entry: getEntry(entry),
-    output: getOutput([{
+    entry,
+    output: getOutput(appPath, [{
       outputRoot,
       publicPath: addTrailingSlash(publicPath),
       chunkDirectory
     }, output]),
     resolve: { alias },
-    module: getModule({
+    module: getModule(appPath, {
       designWidth,
       deviceRatio,
       enableExtract,

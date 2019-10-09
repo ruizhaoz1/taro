@@ -8,7 +8,7 @@ export interface Option {
   [key: string]: any;
 };
 
-type TogglableOptions<T = Option> = {
+export type TogglableOptions<T = Option> = {
   enable?: boolean;
   config?: T;
 }
@@ -16,7 +16,7 @@ type TogglableOptions<T = Option> = {
 export namespace PostcssOption {
   export type cssModules = TogglableOptions<{
     namingPattern: 'global' | string;
-    generateScopedName: string;
+    generateScopedName: string | ((localName: string, absoluteFilePath: string) => string);
   }>;
 }
 
@@ -31,24 +31,30 @@ export interface Chain {
   [key: string]: any;
 }
 
+export interface IOption {
+  [key: string]: any
+}
+
+export interface IH5RouterConfig {
+  mode?: 'hash' | 'browser' | 'multi',
+  customRoutes?: IOption,
+  basename?: string,
+  renamePagename?: (pagename: string) => string
+}
+
 export interface TaroH5Config {
 
   webpack: ((webpackConfig: webpack.Configuration, webpack) => webpack.Configuration) | webpack.Configuration
 
   webpackChain: (chain: any, webpack: any) => void;
-  dllWebpackChain: (chain: any, webpack: any) => void;
 
   alias: Option;
   entry: webpack.Entry;
   output: webpack.Output;
-  router?: {
-    mode?: 'hash' | 'browser';
-    custouRoutes?: Option;
-  };
+  router?: IH5RouterConfig;
   devServer: webpackDevServer.Configuration;
   enableSourceMap: boolean;
   enableExtract: boolean;
-  enableDll: boolean;
 
   cssLoaderOption: Option;
   styleLoaderOption: Option;
@@ -59,11 +65,6 @@ export interface TaroH5Config {
   fontUrlLoaderOption: Option;
   imageUrlLoaderOption: Option;
   miniCssExtractPluginOption: Option;
-  dllDirectory: string;
-  dllFilename: string;
-  dllEntry: {
-    [key: string]: string[];
-  };
   esnextModules: string[];
 
   module?: {
@@ -75,6 +76,7 @@ export interface TaroPlugins {
   babel: Option;
   csso?: TogglableOptions;
   uglify?: TogglableOptions;
+  sass?: Option;
 }
 
 export interface CopyOptions {
@@ -107,4 +109,6 @@ export interface TaroBaseConfig {
 
 export interface BuildConfig extends TaroBaseConfig, TaroH5Config {
   isWatch: boolean;
+  port?: number;
+  homePage?: [string, string]
 };

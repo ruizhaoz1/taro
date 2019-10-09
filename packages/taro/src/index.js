@@ -1,4 +1,5 @@
 /* eslint-disable camelcase */
+import './polyfill'
 import Component from './component'
 import { get as internal_safe_get } from './internal/safe-get'
 import { set as internal_safe_set } from './internal/safe-set'
@@ -7,9 +8,50 @@ import { getOriginal as internal_get_original } from './internal/get-original'
 import { getEnv, ENV_TYPE } from './env'
 import Events from './events'
 import render from './render'
-import { noPromiseApis, onAndSyncApis, otherApis, initPxTransform } from './native-apis'
+import { createRef, commitAttachRef, detachAllRef, RefsArray } from './ref'
+import Link from './interceptor'
+import * as interceptors from './interceptor/interceptors'
+import {
+  noPromiseApis,
+  onAndSyncApis,
+  otherApis,
+  initPxTransform
+} from './native-apis'
+import {
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useImperativeHandle,
+  invokeEffects,
+  useContext,
+  useDidShow,
+  useDidHide,
+  usePullDownRefresh,
+  useReachBottom,
+  usePageScroll,
+  useResize,
+  useShareAppMessage,
+  useTabItemTap,
+  useRouter,
+  forceUpdateCallback as internal_force_update
+} from './hooks'
+import { Current } from './current'
+import { createContext } from './create-context'
+import { memo } from './memo'
 
-const eventCenter = new Events()
+let eventCenter
+if (process.env.TARO_ENV === 'alipay') {
+  if (!my.taroEventCenter) {
+    my.taroEventCenter = new Events()
+  }
+  eventCenter = my.taroEventCenter
+} else {
+  eventCenter = new Events()
+}
 
 export {
   Component,
@@ -22,10 +64,39 @@ export {
   internal_safe_set,
   internal_inline_style,
   internal_get_original,
+  internal_force_update,
   noPromiseApis,
   onAndSyncApis,
   otherApis,
-  initPxTransform
+  initPxTransform,
+  createRef,
+  commitAttachRef,
+  detachAllRef,
+  Link,
+  interceptors,
+  RefsArray,
+  Current,
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useState,
+  useDidShow,
+  useDidHide,
+  usePullDownRefresh,
+  useReachBottom,
+  usePageScroll,
+  useResize,
+  useShareAppMessage,
+  useTabItemTap,
+  useRouter,
+  useRef,
+  useCallback,
+  useMemo,
+  useImperativeHandle,
+  invokeEffects,
+  useContext,
+  createContext,
+  memo
 }
 
 export default {
@@ -39,8 +110,37 @@ export default {
   internal_safe_set,
   internal_inline_style,
   internal_get_original,
+  internal_force_update,
   noPromiseApis,
   onAndSyncApis,
   otherApis,
-  initPxTransform
+  initPxTransform,
+  createRef,
+  commitAttachRef,
+  detachAllRef,
+  Link,
+  interceptors,
+  RefsArray,
+  Current,
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useState,
+  useDidShow,
+  useDidHide,
+  usePullDownRefresh,
+  useReachBottom,
+  usePageScroll,
+  useResize,
+  useShareAppMessage,
+  useTabItemTap,
+  useRouter,
+  useRef,
+  useCallback,
+  useMemo,
+  useImperativeHandle,
+  invokeEffects,
+  useContext,
+  createContext,
+  memo
 }

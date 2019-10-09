@@ -1,6 +1,7 @@
+import 'weui'
 import Nerv from 'nervjs'
 import classNames from 'classnames'
-import Swipers from 'swiper/dist/js/swiper.min.js'
+import Swipers from 'swiper'
 
 import 'swiper/dist/css/swiper.min.css'
 import './style/index.scss'
@@ -14,12 +15,24 @@ class SwiperItem extends Nerv.Component {
   }
 }
 
+const createEvent = type => {
+  let e
+  try {
+    e = new TouchEvent(type)
+  } catch (err) {
+    e = document.createEvent('Event')
+    e.initEvent(type, true, true)
+  }
+  return e
+}
+
 class Swiper extends Nerv.Component {
   constructor () {
     super(...arguments)
     this.$el = null
     this._id = INSTANCE_ID + 1
     INSTANCE_ID++
+    this._$current = 0
   }
 
   componentDidMount () {
@@ -32,12 +45,14 @@ class Swiper extends Nerv.Component {
       onChange,
       circular,
       vertical,
-      onAnimationfinish
+      onAnimationfinish,
+      spaceBetween
     } = this.props
 
+    const that = this
     const opt = {
       // 指示器
-      pagination: { el: '.swiper-pagination' },
+      pagination: { el: `.taro-swiper-${this._id} .swiper-pagination` },
       direction: vertical ? 'vertical' : 'horizontal',
       loop: circular,
       slidesPerView: parseInt(displayMultipleItems, 10),
@@ -46,23 +61,28 @@ class Swiper extends Nerv.Component {
       observer: true,
       on: {
         slideChange () {
-          let e = new TouchEvent('touchend')
-          Object.defineProperty(e, 'detail', {
-            enumerable: true,
-            value: {
-              current: this.realIndex
-            }
-          })
+          let e = createEvent('touchend')
+          try {
+            Object.defineProperty(e, 'detail', {
+              enumerable: true,
+              value: {
+                current: this.realIndex
+              }
+            })
+          } catch (err) {}
+          that._$current = this.realIndex
           onChange && onChange(e)
         },
         transitionEnd () {
-          let e = new TouchEvent('touchend')
-          Object.defineProperty(e, 'detail', {
-            enumerable: true,
-            value: {
-              current: this.realIndex
-            }
-          })
+          let e = createEvent('touchend')
+          try {
+            Object.defineProperty(e, 'detail', {
+              enumerable: true,
+              value: {
+                current: this.realIndex
+              }
+            })
+          } catch (err) {}
           onAnimationfinish && onAnimationfinish(e)
         }
       }
@@ -77,23 +97,45 @@ class Swiper extends Nerv.Component {
       }
     }
 
+    // 两端距离
+    if (spaceBetween) {
+      opt.spaceBetween = spaceBetween
+    }
+
     this.mySwiper = new Swipers(this.$el, opt)
   }
 
   componentWillReceiveProps (nextProps) {
-    const nextCurrent = nextProps.current || 0
-    // 是否衔接滚动模式
-    if (nextProps.circular) {
-      this.mySwiper.slideToLoop(parseInt(nextCurrent, 10)) // 更新下标
-    } else {
-      this.mySwiper.slideTo(parseInt(nextCurrent, 10)) // 更新下标
+    if (this.mySwiper) {
+      let nextCurrent = 0
+      if (nextProps.current === 0) {
+        nextCurrent = this._$current || 0
+      } else {
+        nextCurrent = nextProps.current || this._$current || 0
+      }
+      // 是否衔接滚动模式
+      if (nextProps.circular) {
+        if (nextProps.current !== 0) this.mySwiper.slideToLoop(parseInt(nextCurrent, 10)) // 更新下标
+      } else {
+        if (nextProps.current !== 0) this.mySwiper.slideTo(parseInt(nextCurrent, 10)) // 更新下标
+      }
+
+      // 判断是否需要停止或开始自动轮播
+      if (this.mySwiper.autoplay.running !== nextProps.autoplay) {
+        if (nextProps.autoplay) {
+          this.mySwiper.autoplay.start()
+        } else {
+          this.mySwiper.autoplay.stop()
+        }
+      }
+
+      this.mySwiper.update() // 更新子元素
     }
-    this.mySwiper.update() // 更新子元素
   }
 
   componentWillUnmount () {
     this.$el = null
-    this.mySwiper.destroy()
+    if (this.mySwiper) this.mySwiper.destroy()
   }
 
   render () {
@@ -101,18 +143,25 @@ class Swiper extends Nerv.Component {
     let defaultIndicatorColor = indicatorColor || 'rgba(0, 0, 0, .3)'
     let defaultIndicatorActiveColor = indicatorActiveColor || '#000'
     const cls = classNames(`taro-swiper-${this._id}`, 'swiper-container', className)
+    const paginationCls = classNames(
+      'swiper-pagination',
+      {
+        'swiper-pagination-hidden': !this.props.indicatorDots,
+        'swiper-pagination-bullets': this.props.indicatorDots
+      }
+    )
     return (
       <div className={cls} style={style} ref={(el) => { this.$el = el }}>
         <div
           dangerouslySetInnerHTML={{
             __html: `<style type='text/css'>
             .taro-swiper-${this._id} .swiper-pagination-bullet { background: ${defaultIndicatorColor} }
-            .taro-swiper-${this._id} .swiper-pagination-bullet-active { background: ${defaultIndicatorActiveColor} } 
+            .taro-swiper-${this._id} .swiper-pagination-bullet-active { background: ${defaultIndicatorActiveColor} }
             </style>`
           }}
         />
         <div className='swiper-wrapper'>{this.props.children}</div>
-        {this.props.indicatorDots ? <div className='swiper-pagination' /> : null}
+        <div className={paginationCls} />
       </div>
     )
   }

@@ -19,6 +19,7 @@ const onAndSyncApis = {
   onHCEMessage: true,
   onGetWifiList: true,
   onWifiConnected: true,
+  onDeviceMotionChange: true,
   setStorageSync: true,
   getStorageSync: true,
   getStorageInfoSync: true,
@@ -28,8 +29,25 @@ const onAndSyncApis = {
   getExtConfigSync: true,
   getLogManager: true,
   onMemoryWarning: true,
+  reportMonitor: true,
   reportAnalytics: true,
-  navigateToSmartGameProgram: true
+  navigateToSmartGameProgram: true,
+  // 文件
+  getFileSystemManager: true,
+
+  getLaunchOptionsSync: true,
+  onPageNotFound: true,
+  onError: true,
+  onAppShow: true,
+  onAppHide: true,
+  offPageNotFound: true,
+  offError: true,
+  offAppShow: true,
+  offAppHide: true,
+  onAudioInterruptionEnd: true,
+  onAudioInterruptionBegin: true,
+  onLocationChange: true,
+  offLocationChange: true
 }
 const noPromiseApis = {
   // 媒体
@@ -63,14 +81,17 @@ const noPromiseApis = {
   showNavigationBarLoading: true,
   hideNavigationBarLoading: true,
   createAnimation: true,
-  pageScrollTo: true,
   createSelectorQuery: true,
+  createOffscreenCanvas: true,
   createCanvasContext: true,
-  createContext: true,
+  // createContext: true,
   drawCanvas: true,
   hideKeyboard: true,
   stopPullDownRefresh: true,
   createIntersectionObserver: true,
+
+  // 菜单
+  getMenuButtonBoundingClientRect: true,
 
   onWindowResize: true,
   offWindowResize: true,
@@ -81,7 +102,11 @@ const noPromiseApis = {
 
   getAccountInfoSync: true,
   getUpdateManager: true,
-  createWorker: true
+  createWorker: true,
+
+  // 广告
+  createRewardedVideoAd: true,
+  createInterstitialAd: true
 }
 const otherApis = {
   // 网络
@@ -93,11 +118,15 @@ const otherApis = {
 
   // 媒体
   chooseImage: true,
+  chooseMessageFile: true,
   previewImage: true,
   getImageInfo: true,
+  compressImage: true,
   saveImageToPhotosAlbum: true,
   startRecord: true,
   playVoice: true,
+  setInnerAudioOption: true,
+  getAvailableAudioSources: true,
   getBackgroundAudioPlayerState: true,
   playBackgroundAudio: true,
   seekBackgroundAudio: true,
@@ -128,6 +157,9 @@ const otherApis = {
   reLaunch: true,
 
   // 位置
+  startLocationUpdate: true,
+  startLocationUpdateBackground: true,
+  stopLocationUpdate: true,
   getLocation: true,
   chooseLocation: true,
   openLocation: true,
@@ -172,8 +204,11 @@ const otherApis = {
   getWifiList: true,
   setWifiList: true,
   getConnectedWifi: true,
+  startDeviceMotionListening: true,
+  stopDeviceMotionListening: true,
 
   // 界面
+  pageScrollTo: true,
   showToast: true,
   showLoading: true,
   showModal: true,
@@ -229,6 +264,8 @@ const otherApis = {
   checkIsSoterEnrolledInDevice: true,
 
   setEnableDebug: true,
+  // 支付宝小程序API
+  getOpenUserInfo: true,
 
   // 百度小程序专有 API
   // 百度小程序 AI 相关
@@ -246,6 +283,7 @@ const otherApis = {
   logoClassify: true,
   animalClassify: true,
   plantClassify: true,
+  setPageInfo: true,
 
   // 用户信息
   getSwanId: true,

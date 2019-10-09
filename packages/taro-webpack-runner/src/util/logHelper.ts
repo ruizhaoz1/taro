@@ -21,7 +21,7 @@ const printCompiling = () => {
 const printBuildError = (err: Error): void => {
   const message = err.message
   const stack = err.stack
-  if (stack && typeof message === 'string' && message.indexOf('from UglifyJs') !== -1) {
+  if (stack && message.indexOf('from UglifyJs') !== -1) {
     try {
       const matched = /(.+)\[(.+):(.+),(.+)\]\[.+\]/.exec(stack)
       if (!matched) {
@@ -82,7 +82,7 @@ const printWhenFailed = compiler => {
   return compiler
 }
 
-let isFirst = false
+let isFirst = true
 const printWhenFirstDone = (devUrl, compiler) => {
   compiler.hooks.done.tap('taroDone', stats => {
     if (isFirst) {
@@ -109,6 +109,7 @@ const _printWhenDone = ({
     if (stats.hasErrors()) {
       printFailed()
       errors.forEach(e => console.log(e + '\n'));
+      verbose && process.exit(1)      
       return;
     }
   
@@ -155,21 +156,10 @@ const bindProdLogger = (compiler) => {
   return compiler
 }
 
-const bindDllLogger = (compiler) => {
-  console.log()
-  pipe(
-    printWhenBeforeCompile,
-    printWhenDone,
-    printWhenFailed
-  )(compiler)
-  return compiler
-}
-
 export {
   printBuildError,
   printCompiling,
   getServeSpinner,
   bindDevLogger,
-  bindProdLogger,
-  bindDllLogger
+  bindProdLogger
 }

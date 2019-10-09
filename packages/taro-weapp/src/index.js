@@ -4,19 +4,44 @@ import {
   Events,
   eventCenter,
   ENV_TYPE,
+  createRef,
   render,
   internal_safe_get,
   internal_safe_set,
   internal_inline_style,
-  internal_get_original
+  internal_get_original,
+  interceptors,
+  RefsArray,
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useState,
+  useDidShow,
+  useDidHide,
+  usePullDownRefresh,
+  useReachBottom,
+  usePageScroll,
+  useResize,
+  useShareAppMessage,
+  useTabItemTap,
+  useRouter,
+  useRef,
+  useCallback,
+  useMemo,
+  useImperativeHandle,
+  useContext,
+  createContext,
+  memo
 } from '@tarojs/taro'
+import { shallowEqual } from '@tarojs/utils'
 
 import Component from './component'
 import PureComponent from './pure-component'
 import createApp from './create-app'
 import createComponent from './create-component'
 import initNativeApi from './native-api'
-import { getElementById } from './util'
+import propsManager from './propsManager'
+import { getElementById, genCompid } from './util'
 
 export const Taro = {
   Component,
@@ -26,6 +51,7 @@ export const Taro = {
   Events,
   eventCenter,
   getEnv,
+  createRef,
   render,
   ENV_TYPE,
   internal_safe_get,
@@ -33,7 +59,32 @@ export const Taro = {
   internal_inline_style,
   createComponent,
   internal_get_original,
-  getElementById
+  getElementById,
+  propsManager,
+  interceptors,
+  RefsArray,
+  genCompid,
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useState,
+  useDidShow,
+  useDidHide,
+  usePullDownRefresh,
+  useReachBottom,
+  usePageScroll,
+  useResize,
+  useShareAppMessage,
+  useTabItemTap,
+  useRouter,
+  useRef,
+  useCallback,
+  useMemo,
+  useImperativeHandle,
+  useContext,
+  createContext,
+  memo,
+  shallowEqual
 }
 
 export default Taro

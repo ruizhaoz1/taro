@@ -1,3 +1,4 @@
+import { Link } from '@tarojs/taro'
 import jsonpRetry from 'jsonp-retry'
 import 'whatwg-fetch'
 import { serializeParams } from '../utils'
@@ -11,7 +12,7 @@ function generateRequestUrlWithParams (url, params) {
   return url
 }
 
-export default function request (options) {
+function _request (options) {
   options = options || {}
   if (typeof options === 'string') {
     options = {
@@ -98,3 +99,13 @@ export default function request (options) {
       return Promise.reject(err)
     })
 }
+
+function taroInterceptor (chain) {
+  return _request(chain.requestParams)
+}
+
+const link = new Link(taroInterceptor)
+
+/** @type {TaroH5.request} */
+export const request = link.request.bind(link)
+export const addInterceptor = link.addInterceptor.bind(link)

@@ -1,7 +1,8 @@
 {
   "name": "@tarojs/taro",
-  "version": "1.2.0",
+  "version": "1.3.19",
   "description": "Taro framework",
+  "module": "dist/index.esm.js",
   "main": "index.js",
   "typings": "types/index.d.ts",
   "files": [
@@ -23,8 +24,11 @@
     "taro"
   ],
   "peerDependencies": {
-    "nervjs": "^1.2.17"
+    "nervjs": "^1.4.0"
   },
   "author": "O2Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@tarojs/utils": "1.3.19"
+  }
 }

@@ -1,10 +1,10 @@
 import { ComponentType } from 'react'
-import { StandardProps, BaseEventFunction } from './common'
+import { StandardProps, CommonEventFunction } from './common'
 
 type OpenType = 'contact' | 'share' | 'getUserInfo' | 'getPhoneNumber'
 
 
-interface ButtonProps extends StandardProps {
+export interface ButtonProps extends StandardProps {
 
   /**
    * 按钮的大小
@@ -49,7 +49,10 @@ interface ButtonProps extends StandardProps {
   /**
    * 微信开放能力
    */
-  openType?: 'contact' | 'share' | 'getUserInfo' | 'getPhoneNumber' | 'launchApp' | 'openSetting' | 'feedback' | 'getRealnameAuthInfo',
+  openType?: 'contact' | 'share' | 'getUserInfo' | 'getPhoneNumber' |
+    'launchApp' | 'openSetting' | 'feedback' | 'getRealnameAuthInfo' |
+    'getAuthorize' | 'lifestyle' | 'contactShare',
+
   /**
    * 指定按下去的样式类。当 `hover-class="none"` 时，没有点击态效果
    *
@@ -90,7 +93,44 @@ interface ButtonProps extends StandardProps {
    *
    * 生效时机: `open-type="getUserInfo"`
    */
-  onGetUserInfo?: BaseEventFunction,
+  onGetUserInfo?: CommonEventFunction<{
+    /** 用户信息 */
+    userInfo: {
+      /** 昵称 */
+      nickName: string,
+      /** 头像 */
+      avatarUrl: string,
+      /**
+       * 性别
+       *
+       * - `0`: 未知
+       * - `1`: 男
+       * - `2`: 女
+       */
+      gender: 0 | 1 | 2,
+      /** 省份，如：`Yunnan` */
+      province: string,
+      /** 城市，如：`Dalian` */
+      city: string,
+      /** 国家，如：`China` */
+      country: string,
+    },
+    /** 不包括敏感信息的原始数据 `JSON` 字符串，用于计算签名 */
+    rawData: string,
+    /** 使用 `sha1(rawData + sessionkey)` 得到字符串，用于校验用户信息 */
+    signature: string,
+    /** 包括敏感数据在内的完整用户信息的加密数据 */
+    encryptedData: string,
+    /** 加密算法的初始向量 */
+    iv: string,
+  }>,
+
+  /**
+   * 支付宝小程序scope
+   * 
+   * 生效时机：`open-type="getAuthorize"`
+   */
+  scope?: 'userInfo' | 'phoneNumber'
 
   /**
    * 会话来源
@@ -140,21 +180,33 @@ interface ButtonProps extends StandardProps {
    *
    * 生效时机：`open-type="contact"`
    */
-  onContact?: BaseEventFunction,
+  onContact?: (
+    event: {
+      /** 小程序消息指定的路径 */
+      path: string,
+      /** 小程序消息指定的查询参数 */
+      query: Record<string, any>
+    }
+  ) => any,
 
   /**
    * 获取用户手机号回调
    *
    * 生效时机：`open-type="getphonenumber"`
    */
-  onGetPhoneNumber?: BaseEventFunction,
+  onGetPhoneNumber?: CommonEventFunction<{
+    /** 包括敏感数据在内的完整用户信息的加密数据 */
+    encryptedData: string,
+    /** 加密算法的初始向量 */
+    iv: string
+  }>,
 
   /**
    * 获取用户实名
    *
    * 生效时机：`open-type="getRealnameAuthInfo"`
    */
-  onGetRealnameAuthInfo?: BaseEventFunction,
+  onGetRealnameAuthInfo?: CommonEventFunction,
 
   /**
    * 打开 APP 时，向 APP 传递的参数
@@ -167,14 +219,21 @@ interface ButtonProps extends StandardProps {
    *
    * 生效时机：`open-type="launchApp"`
    */
-  onError?: BaseEventFunction,
+  onError?: CommonEventFunction,
 
   /**
    * 在打开授权设置页后回调
    *
    * 生效时机：`open-type="openSetting"`
    */
-  onOpenSetting?: BaseEventFunction
+  onOpenSetting?: CommonEventFunction,
+
+  /**
+   * 支付宝获取会员基础信息授权回调
+   * 
+   * 生效时机：`open-type="getAuthorize"`
+   */
+  onGetAuthorize?: CommonEventFunction
 }
 
 declare const Button: ComponentType<ButtonProps>

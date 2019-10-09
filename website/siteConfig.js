@@ -15,38 +15,43 @@ const users = [
     // You will need to prepend the image path with your baseUrl
     // if it is not '/', like: '/test-site/img/docusaurus.svg'.
     image: 'img/logo-taro.png',
-    infoLink: 'https://taro.aotu.io',
-    pinned: true,
-  },
-];
+    infoLink: 'https://taro.jd.com',
+    pinned: true
+  }
+]
 
 const siteConfig = {
   editUrl: 'https://github.com/nervjs/taro/edit/master/docs/',
   title: 'Taro' /* title for your website */,
-  tagline: '多端统一开发框架，支持用 React 的开发方式编写一次代码，生成能运行在微信小程序、H5、React Native 等的应用。',
-  url: 'https://taro.aotu.io' /* your website url */,
+  tagline: '多端统一开发框架，支持用 React 的开发方式编写一次代码，生成能运行在微信/百度/字节跳动/支付宝/QQ小程序、快应用、H5、React Native 等平台的应用。',
+  url: 'https://taro.jd.com' /* your website url */,
   baseUrl: '/taro/' /* base url for your project */,
   // For github.io type URLs, you would set the url and baseUrl like:
   //   url: 'https://facebook.github.io',
   //   baseUrl: '/test-site/',
 
   // Used for publishing and more
-  projectName: 'TaroDocs',
-  organizationName: 'O2Team',
+  projectName: 'taro',
+  organizationName: 'NervJS',
   // For top-level user or org sites, the organization is still the same.
   // e.g., for the https://JoelMarcey.github.io site, it would be set like...
   //   organizationName: 'JoelMarcey'
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    { doc: 'README', label: '文档' },
-    { href: 'https://github.com/NervJS/taro', label: 'GitHub' },
-    { search: true },
+    {doc: 'README', label: '文档'},
+    {doc: 'components-desc', label: '组件库'},
+    {doc: 'apis/about/desc', label: 'API'},
+    {search: true},
+    {href: 'https://taro-ui.jd.com', label: 'Taro-UI'},
+    {href: 'https://taro-ext.jd.com', label: '物料市场'},
+    {href: 'https://taro-club.jd.com', label: '论坛'},
+    {href: 'https://github.com/NervJS/taro', label: 'GitHub'}
   ],
 
   algolia: {
-    apiKey: "57b9948bff42bc0dbc6c219556fbae35",
-    indexName: "taro"
+    apiKey: '57b9948bff42bc0dbc6c219556fbae35',
+    indexName: 'taro'
   },
 
   // If you have users set above, you add it here:
@@ -59,12 +64,12 @@ const siteConfig = {
 
   /* colors for website */
   colors: {
-    primaryColor: 'rgb(40, 43, 46)',
-    secondaryColor: '#4a72ea',
+    primaryColor: '#0000c2',
+    secondaryColor: '#4a72ea'
   },
 
   /* custom fonts for website */
-  /*fonts: {
+  /* fonts: {
     myFont: [
       "Times New Roman",
       "Serif"
@@ -73,23 +78,32 @@ const siteConfig = {
       "-apple-system",
       "system-ui"
     ]
-  },*/
+  }, */
 
   // This copyright info is used in /core/Footer.js and blog rss/atom feeds.
-  copyright:
-    'Copyright © ' +
-    new Date().getFullYear() +
-    ' ltp11',
+  copyright: 'Copyright © ' + new Date().getFullYear() + ' ltp11',
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks
-    theme: 'tomorrow-night',
+    // theme: 'tomorrow-night',
+    theme: 'Vs'
   },
 
   usePrism: true,
 
   // Add custom scripts here that would be placed in <script> tags
-  scripts: ['https://buttons.github.io/buttons.js', 'https://jdc.jd.com/demo/talenttest/js/url.js'],
+  scripts: [
+    'https://buttons.github.io/buttons.js',
+    'https://jdc.jd.com/demo/talenttest/js/url.js',
+    {
+      src: 'https://storage.jd.com/taro-resource/tongji.js',
+      async: true
+    },
+    {
+      src: 'https://storage.jd.com/taro-docs/taro-doc-hotjar.js',
+      async: true
+    }
+  ],
 
   /* On page navigation for the current documentation page */
   onPageNav: 'separate',
@@ -99,10 +113,11 @@ const siteConfig = {
   twitterImage: 'img/logo-taro.png',
 
   scrollToTop: true,
+  docsSideNavCollapsible: true
 
   // You may provide arbitrary config keys to be used as needed by your
   // template. For example, if you need your repo's URL...
   //   repoUrl: 'https://github.com/facebook/test-site',
-};
+}
 
-module.exports = siteConfig;
+module.exports = siteConfig

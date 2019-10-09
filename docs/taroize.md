@@ -15,6 +15,7 @@ $ taro convert
 即可完成转换。转换后的代码保存在根目录下的 `taroConvert` 文件夹下。你需要定位到 `taroConvert` 目录执行 `npm install` 命令之后就可以使用 `taro build` 命令编译到对应平台的代码。
 
 ## 二次开发
+
 假设已有一个转换后文件如下：
 
 ```javascript
@@ -120,15 +121,15 @@ export default _C
 
 ### `this.setData`
 
-转换后的  `this.setData` 的 API 相当于小程序的 `this.setData` 的 polyfill，他和 `this.setState`  最大的区别就在于，`this.setData` 之后 `data` 的数据是同步更新，而渲染是异步更新，而 `setState` 两者都是异步的。
+转换后的 `this.setData` 的 API 相当于小程序的 `this.setData` 的 polyfill，他和 `this.setState` 最大的区别就在于，`this.setData` 之后 `data` 的数据是同步更新，而渲染是异步更新，而 `setState` 两者都是异步的。
 
 ### `this.data` 和 `this.properties`
 
- `this.data` 和 `this.properties` 相当于 Taro 的 `this.state` 和 `this.props` 的 alias，当它们的数据更新时，对应的 `state` 和 `props` 也会同步更新。
+`this.data` 和 `this.properties` 相当于 Taro 的 `this.state` 和 `this.props` 的 alias，当它们的数据更新时，对应的 `state` 和 `props` 也会同步更新。
 
 ### 生命周期
-Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期，完整对应关系如下：
 
+Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期，完整对应关系如下：
 
 | Page.onLoad | componentWillMount |
 | --: | --: |
@@ -136,7 +137,7 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
 | onHide | componentDidHide |
 | onReady | componentDidMount |
 | onUnload | componentWillUnmount |
-| onError | componentCatchError |
+| onError | componentDidCatchError |
 | App.onLaunch | componentWillMount |
 | Component.created | componentWillMount |
 | attached | componentDidMount |
@@ -148,22 +149,22 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
 
 ### 在小程序 IDE 显示 `_createData` 错误
 
-这个错误通常是由于原始代码的初始 `data` 中没有对应的数据，后来通过 `this.setData` 补充数据造成的。在 Taro 中推荐不管是 `state(data)`  还是 `properties(props)` 都要设置一个默认值。你可以在类构造器或修改原始代码提供一个默认值解决这个问题，这也应该是编写代码的最佳实践。
+这个错误通常是由于原始代码的初始 `data` 中没有对应的数据，后来通过 `this.setData` 补充数据造成的。在 Taro 中推荐不管是 `state(data)` 还是 `properties(props)` 都要设置一个默认值。你可以在类构造器或修改原始代码提供一个默认值解决这个问题，这也应该是编写代码的最佳实践。
 
 ### 转换 `wxParse` 报错不存在文件
 
-这是由于 `wxParse` 的源码使用了一个[不存在的 `template` ](https://github.com/icindy/wxParse/issues/255)声明造成的。你可以修改 `wxParse` 的源码文件 `wxParse.wxml` 49 行到 129 行：
+这是由于 `wxParse` 的源码使用了一个[不存在的 `template`](https://github.com/icindy/wxParse/issues/255) 声明造成的。你可以修改 `wxParse` 的源码文件 `wxParse.wxml` 134 行到 207 行：
 
 ```html
 <!--循环模版-->
-<template name="wxParse0">
+<template name="wxParse1">
   <!--<template is="wxParse1" data="{{item}}" />-->
   <!--判断是否是标签节点-->
   <block wx:if="{{item.node == 'element'}}">
     <block wx:if="{{item.tag == 'button'}}">
       <button type="default" size="mini">
         <block wx:for="{{item.nodes}}" wx:for-item="item" wx:key="">
-          <template is="wxParse1" data="{{item}}" />
+          <template is="wxParse0" data="{{item}}" />
         </block>
       </button>
     </block>
@@ -176,7 +177,7 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
           </view>
           <view class="{{item.classStr}} wxParse-li-text">
             <block wx:for="{{item.nodes}}" wx:for-item="item" wx:key="">
-              <template is="wxParse1" data="{{item}}" />
+              <template is="wxParse0" data="{{item}}" />
             </block>
           </view>
         </view>
@@ -197,14 +198,14 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
     <block wx:elif="{{item.tag == 'a'}}">
       <view bindtap="wxParseTagATap" class="wxParse-inline {{item.classStr}} wxParse-{{item.tag}}" data-src="{{item.attr.href}}" style="{{item.styleStr}}">
         <block wx:for="{{item.nodes}}" wx:for-item="item" wx:key="">
-          <template is="wxParse1" data="{{item}}" />
+          <template is="wxParse0" data="{{item}}" />
         </block>
       </view>
     </block>
     <block wx:elif="{{item.tag == 'table'}}">
       <view class="{{item.classStr}} wxParse-{{item.tag}}" style="{{item.styleStr}}">
         <block wx:for="{{item.nodes}}" wx:for-item="item" wx:key="">
-          <template is="wxParse1" data="{{item}}" />
+          <template is="wxParse0" data="{{item}}" />
         </block>
       </view>
     </block>
@@ -216,7 +217,7 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
     <block wx:elif="{{item.tagType == 'block'}}">
       <view class="{{item.classStr}} wxParse-{{item.tag}}" style="{{item.styleStr}}">
         <block wx:for="{{item.nodes}}" wx:for-item="item" wx:key="">
-          <template is="wxParse1" data="{{item}}" />
+          <template is="wxParse0" data="{{item}}" />
         </block>
       </view>
     </block>
@@ -224,7 +225,7 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
     <!--内联标签-->
     <view wx:else class="{{item.classStr}} wxParse-{{item.tag}} wxParse-{{item.tagType}}" style="{{item.styleStr}}">
       <block wx:for="{{item.nodes}}" wx:for-item="item" wx:key="">
-        <template is="wxParse1" data="{{item}}" />
+        <template is="wxParse0" data="{{item}}" />
       </block>
     </view>
 
@@ -239,7 +240,7 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
 </template>
 ```
 
-把所有 `<template is="wxParse1" data="{{item}}" />` 修改为 `<template is="wxParse0" data="{{item}}" />` 再运行 `taro convert` 即可。这样修改之后还会取消原来 `wxParse` 只能处理 11 级 HTML 嵌套的问题，理论上内存不爆栈可以处理无限级 HTML 嵌套。
+把 `<template name="wxParse1">` 的模板内所有 `<template is="wxParse2" data="{{item}}" />` 修改为 `<template is="wxParse0" data="{{item}}" />` 再运行 `taro convert` 即可。这样修改之后还会取消原来 `wxParse` 只能处理 11 级 HTML 嵌套的问题，理论上内存不爆栈可以处理无限级 HTML 嵌套。
 
 ### 不支持 `relations` 和 `Behavior`
 
@@ -247,4 +248,4 @@ Taro 会将原始文件的生命周期钩子函数转换为 Taro 的生命周期
 
 ### 转换 wepy 文件不成功
 
-目前只能支持转换使用原生微信小程序开发的应用。
+目前只能支持转换使用原生微信小程序开发的应用。

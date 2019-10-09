@@ -38,7 +38,7 @@ describe('ref', () => {
       expect(refs[0].type).toBe('component')
       expect(refs[0].refName).toBe('a')
       expect(refs[0].fn).toBe(null)
-      expect(template).toMatch(/<custom id="[a-zA-Z]{5}" __triggerObserer=\"{{ _triggerObserer }}\"><\/custom>/)
+      expect(template).toMatch(/<custom id="[a-zA-Z]{5}"><\/custom>/)
     })
 
     test('字符串模板', () => {
@@ -122,6 +122,24 @@ describe('ref', () => {
       expect(template).toMatch(` + index}}"`)
     })
 
+    test('内置组件 + 其它复杂表达式', () => {
+      const { template, ast, code } = transform({
+        ...baseOptions,
+        isRoot: true,
+        code: buildComponent(`
+          const array = [{ list: [] }, { list: [] }]
+          return (
+            <View>{array.map((item, index) => {
+              return <CoverView style={item} ref={(node) => this.coverView[index] = node}>{item.list.map(item2 => <Text>{item2}</Text>)}</CoverView>
+            })}</View>
+          )
+        `, `coverView = []`)
+      })
+      // console.log(instance)
+      const instance = evalClass(ast)
+      expect(instance.coverView).toEqual(['test-ref', 'test-ref'])
+    })
+
     test('自定义组件组件', () => {
       const { template, ast, code } = transform({
         ...baseOptions,
@@ -141,12 +159,12 @@ describe('ref', () => {
       expect(template).toMatch(`<cover id="{{`)
       expect(template).toMatch(prettyPrint(`
       <block>
-        <view>
-            <cover id=\"{{item.$loopState__temp2}}\" __triggerObserer=\"{{ _triggerObserer }}\" wx:for=\"{{loopArray0}}\" wx:for-item=\"item\" wx:for-index=\"index\">
-                <text wx:for=\"{{item.$original.list}}\" wx:for-item=\"item2\">{{item2}}</text>
-            </cover>
-        </view>
-    </block>
+      <view>
+          <cover id=\"{{item.$loopState__temp2}}\" wx:for=\"{{loopArray0}}\" wx:for-item=\"item\" wx:for-index=\"index\">
+              <text wx:for=\"{{item.$original.list}}\" wx:for-item=\"item2\">{{item2}}</text>
+          </cover>
+      </view>
+  </block>
       `))
     })
 

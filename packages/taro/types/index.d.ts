@@ -1,19 +1,284 @@
-
-export = Taro;
-export as namespace Taro;
+import { JSX } from 'babel-types'
+export = Taro
+export as namespace Taro
 
 declare namespace Taro {
+     // React Hooks
+    // ----------------------------------------------------------------------
+
+    // based on the code in https://github.com/facebook/react/pull/13968
+
+    // Unlike the class component setState, the updates are not allowed to be partial
+    type SetStateAction<S> = S | ((prevState: S) => S)
+    // this technically does accept a second argument, but it's already under a deprecation warning
+    // and it's not even released so probably better to not define it.
+    type Dispatch<A> = (value: A) => void
+    // Unlike redux, the actions _can_ be anything
+    type Reducer<S, A> = (prevState: S, action: A) => S
+    // types used to try and prevent the compiler from reducing S
+    // to a supertype common with the second argument to useReducer()
+    type ReducerState<R extends Reducer<any, any>> = R extends Reducer<infer S, any> ? S : never
+    type ReducerAction<R extends Reducer<any, any>> = R extends Reducer<any, infer A> ? A : never
+    // The identity check is done with the SameValue algorithm (Object.is), which is stricter than ===
+    // TODO (TypeScript 3.0): ReadonlyArray<unknown>
+    type DependencyList = ReadonlyArray<any>
+
+    // NOTE: callbacks are _only_ allowed to return either void, or a destructor.
+    // The destructor is itself only allowed to return void.
+    type EffectCallback = () => (void | (() => void | undefined))
+
+    interface MutableRefObject<T> {
+        current: T
+    }
+
+    /**
+     * Returns a stateful value, and a function to update it.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usestate
+     */
+    function useState<S> (initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>]
+    // convenience overload when first argument is ommitted
+    /**
+     * Returns a stateful value, and a function to update it.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usestate
+     */
+    function useState<S = undefined> (): [S | undefined, Dispatch<SetStateAction<S | undefined>>]
+    /**
+     * An alternative to `useState`.
+     *
+     * `useReducer` is usually preferable to `useState` when you have complex state logic that involves
+     * multiple sub-values. It also lets you optimize performance for components that trigger deep
+     * updates because you can pass `dispatch` down instead of callbacks.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usereducer
+     */
+    // overload where "I" may be a subset of ReducerState<R>; used to provide autocompletion.
+    // If "I" matches ReducerState<R> exactly then the last overload will allow initializer to be ommitted.
+    // the last overload effectively behaves as if the identity function (x => x) is the initializer.
+    function useReducer<R extends Reducer<any, any>, I> (
+        reducer: R,
+        initializerArg: I & ReducerState<R>,
+        initializer: (arg: I & ReducerState<R>) => ReducerState<R>
+    ): [ReducerState<R>, Dispatch<ReducerAction<R>>]
+    /**
+     * An alternative to `useState`.
+     *
+     * `useReducer` is usually preferable to `useState` when you have complex state logic that involves
+     * multiple sub-values. It also lets you optimize performance for components that trigger deep
+     * updates because you can pass `dispatch` down instead of callbacks.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usereducer
+     */
+    // overload for free "I"; all goes as long as initializer converts it into "ReducerState<R>".
+    function useReducer<R extends Reducer<any, any>, I> (
+        reducer: R,
+        initializerArg: I,
+        initializer: (arg: I) => ReducerState<R>
+    ): [ReducerState<R>, Dispatch<ReducerAction<R>>]
+    /**
+     * An alternative to `useState`.
+     *
+     * `useReducer` is usually preferable to `useState` when you have complex state logic that involves
+     * multiple sub-values. It also lets you optimize performance for components that trigger deep
+     * updates because you can pass `dispatch` down instead of callbacks.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usereducer
+     */
+
+    // I'm not sure if I keep this 2-ary or if I make it (2,3)-ary; it's currently (2,3)-ary.
+    // The Flow types do have an overload for 3-ary invocation with undefined initializer.
+
+    // NOTE: without the ReducerState indirection, TypeScript would reduce S to be the most common
+    // supertype between the reducer's return type and the initialState (or the initializer's return type),
+    // which would prevent autocompletion from ever working.
+
+    // TODO: double-check if this weird overload logic is necessary. It is possible it's either a bug
+    // in older versions, or a regression in newer versions of the typescript completion service.
+    function useReducer<R extends Reducer<any, any>> (
+        reducer: R,
+        initialState: ReducerState<R>,
+        initializer?: undefined
+    ): [ReducerState<R>, Dispatch<ReducerAction<R>>]
+    /**
+     * `useRef` returns a mutable ref object whose `.current` property is initialized to the passed argument
+     * (`initialValue`). The returned object will persist for the full lifetime of the component.
+     *
+     * Note that `useRef()` is useful for more than the `ref` attribute. It’s handy for keeping any mutable
+     * value around similar to how you’d use instance fields in classes.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#useref
+     */
+    // TODO (TypeScript 3.0): <T extends unknown>
+    function useRef<T> (initialValue: T): MutableRefObject<T>
+
+    interface RefObject<T> {
+        readonly current: T | null
+    }
+
+    function createRef<T>(): RefObject<T>;
+
+    // convenience overload for refs given as a ref prop as they typically start with a null value
+    /**
+     * `useRef` returns a mutable ref object whose `.current` property is initialized to the passed argument
+     * (`initialValue`). The returned object will persist for the full lifetime of the component.
+     *
+     * Note that `useRef()` is useful for more than the `ref` attribute. It’s handy for keeping any mutable
+     * value around similar to how you’d use instance fields in classes.
+     *
+     * Usage note: if you need the result of useRef to be directly mutable, include `| null` in the type
+     * of the generic argument.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#useref
+     */
+    // TODO (TypeScript 3.0): <T extends unknown>
+    function useRef<T> (initialValue: T | null): RefObject<T>
+    // convenience overload for potentially undefined initialValue / call with 0 arguments
+    // has a default to stop it from defaulting to {} instead
+    /**
+     * `useRef` returns a mutable ref object whose `.current` property is initialized to the passed argument
+     * (`initialValue`). The returned object will persist for the full lifetime of the component.
+     *
+     * Note that `useRef()` is useful for more than the `ref` attribute. It’s handy for keeping any mutable
+     * value around similar to how you’d use instance fields in classes.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#useref
+     */
+    // TODO (TypeScript 3.0): <T extends unknown>
+    function useRef<T = undefined> (): MutableRefObject<T | undefined>
+    /**
+     * The signature is identical to `useEffect`, but it fires synchronously after all DOM mutations.
+     * Use this to read layout from the DOM and synchronously re-render. Updates scheduled inside
+     * `useLayoutEffect` will be flushed synchronously, before the browser has a chance to paint.
+     *
+     * Prefer the standard `useEffect` when possible to avoid blocking visual updates.
+     *
+     * If you’re migrating code from a class component, `useLayoutEffect` fires in the same phase as
+     * `componentDidMount` and `componentDidUpdate`.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#uselayouteffect
+     */
+    function useLayoutEffect (effect: EffectCallback, deps?: DependencyList): void
+    /**
+     * Accepts a function that contains imperative, possibly effectful code.
+     *
+     * @param effect Imperative function that can return a cleanup function
+     * @param deps If present, effect will only activate if the values in the list change.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#useeffect
+     */
+    function useEffect (effect: EffectCallback, deps?: DependencyList): void
+    // NOTE: this does not accept strings, but this will have to be fixed by removing strings from type Ref<T>
+    /**
+     * `useImperativeHandle` customizes the instance value that is exposed to parent components when using
+     * `ref`. As always, imperative code using refs should be avoided in most cases.
+     *
+     * `useImperativeHandle` should be used with `React.forwardRef`.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#useimperativehandle
+     */
+    type Ref<T> =
+      | string
+      | { bivarianceHack (instance: T | null): any }['bivarianceHack']
+    function useImperativeHandle<T, R extends T> (ref: Ref<T> | undefined, init: () => R, deps?: DependencyList): void
+    // I made 'inputs' required here and in useMemo as there's no point to memoizing without the memoization key
+    // useCallback(X) is identical to just using X, useMemo(() => Y) is identical to just using Y.
+    /**
+     * `useCallback` will return a memoized version of the callback that only changes if one of the `inputs`
+     * has changed.
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usecallback
+     */
+    // TODO (TypeScript 3.0): <T extends (...args: never[]) => unknown>
+    function useCallback<T extends (...args: any[]) => any> (callback: T, deps: DependencyList): T
+    /**
+     * `useMemo` will only recompute the memoized value when one of the `deps` has changed.
+     *
+     * Usage note: if calling `useMemo` with a referentially stable function, also give it as the input in
+     * the second argument.
+     *
+   ```ts
+   function expensive () { ... }
+
+   function Component () {
+     const expensiveResult = useMemo(expensive, [expensive])
+     return ...
+   }
+   ```
+     *
+     * @version 16.8.0
+     * @see https://reactjs.org/docs/hooks-reference.html#usememo
+     */
+    // allow undefined, but don't make it optional as that is very likely a mistake
+    function useMemo<T> (factory: () => T, deps: DependencyList | undefined): T
+
+    /**
+     * 页面展示时的回调
+     */
+    function useDidShow (callback: () => any)
+
+    /**
+     * 页面隐藏时的回调
+     */
+    function useDidHide (callback: () => any)
+
+    /**
+     * 监听用户下拉刷新事件
+     */
+    function usePullDownRefresh (callback: () => any)
+
+    /**
+     * 监听用户上拉触底事件
+     */
+    function useReachBottom (callback: () => any)
+
+    /**
+     * 监听用户滑动页面事件
+     */
+    function usePageScroll (callback: (obj: PageScrollObject) => any)
+
+    /**
+     * 小程序屏幕旋转时触发
+     */
+    function useResize (callback: (obj: any) => any)
+
+    /**
+     * 监听用户点击页面内转发按钮（button 组件 open-type="share"）或右上角菜单“转发”按钮的行为，并自定义转发内容
+     */
+    function useShareAppMessage (callback: (obj: ShareAppMessageObject) => any)
+
+    /**
+     * 点击 tab 时触发
+     */
+    function useTabItemTap (callback: (obj: TabItemTapObject) => any)
+
+    /**
+     * 获取页面传入路由相关参数
+     */
+    function useRouter (): RouterInfo
 
   interface PageNotFoundObject {
     /**
      * 不存在页面的路径
      */
-    path: string,
+    path: string
 
     /**
      * 打开不存在页面的 query
      */
-    query: object,
+    query: object
 
     /**
      * 是否本次启动的首个页面（例如从分享等入口进来，首个页面是开发者配置的分享页面）
@@ -32,11 +297,11 @@ declare namespace Taro {
     /**
      * 转发事件来源
      */
-    from?: string,
+    from?: string
     /**
      * 如果 from 值是 button，则 target 是触发这次转发事件的 button，否则为 undefined
      */
-    target?: object,
+    target?: object
     /**
      * 页面中包含<web-view>组件时，返回当前<web-view>的url
      */
@@ -47,12 +312,12 @@ declare namespace Taro {
     /**
      * 	转发标题，默认为当前小程序名称
      */
-    title?: string,
+    title?: string
 
     /**
      * 转发路径，必须是以 / 开头的完整路径，默认为当前页面 path
      */
-    path?: string,
+    path?: string
 
     /**
      * 自定义图片路径，可以是本地文件路径、代码包文件路径或者网络图片路径
@@ -66,12 +331,12 @@ declare namespace Taro {
     /**
      * 被点击tabItem的序号，从0开始
      */
-    index: string,
+    index: string
 
     /**
      * 被点击tabItem的页面路径
      */
-    pagePath: string,
+    pagePath: string
 
     /**
      * 被点击tabItem的按钮文字
@@ -79,122 +344,255 @@ declare namespace Taro {
     text: string
   }
 
-  // Components
-  interface ComponentLifecycle<P, S> {
-    componentWillMount?(): void;
-    componentDidMount?(): void;
-    componentWillReceiveProps?(nextProps: Readonly<P>, nextContext: any): void;
-    shouldComponentUpdate?(nextProps: Readonly<P>, nextState: Readonly<S>, nextContext: any): boolean;
-    componentWillUpdate?(nextProps: Readonly<P>, nextState: Readonly<S>, nextContext: any): void;
-    componentDidUpdate?(prevProps: Readonly<P>, prevState: Readonly<S>, prevContext: any): void;
-    componentWillUnmount?(): void;
-    componentWillPreload?(params: {[propName: string]: any}): any;
-    componentDidShow?(): void;
-    componentDidHide?(): void;
-    componentDidCatchError?(err: string): void;
-    componentDidNotFound?(obj: PageNotFoundObject): void;
-    onPullDownRefresh?(): void;
-    onReachBottom?(): void;
-    onPageScroll?(obj: PageScrollObject): void;
-    onShareAppMessage?(obj: ShareAppMessageObject): ShareAppMessageReturn;
-    onTabItemTap?(obj: TabItemTapObject): void;
-    onResize?(): void
+  type GetDerivedStateFromProps<P, S> =
+  /**
+   * Returns an update to a component's state based on its new props and old state.
+   *
+   * Note: its presence prevents any of the deprecated lifecycle methods from being invoked
+   */
+  (nextProps: Readonly<P>, prevState: S) => Partial<S> | null;
+
+  interface StaticLifecycle<P, S> {
+    getDerivedStateFromProps?: GetDerivedStateFromProps<P, S>;
   }
 
-  interface Component<P = {}, S = {}> extends ComponentLifecycle<P, S> {
+  interface NewLifecycle<P, S, SS> {
+    /**
+     * Runs before React applies the result of `render` to the document, and
+     * returns an object to be given to componentDidUpdate. Useful for saving
+     * things such as scroll position before `render` causes changes to it.
+     *
+     * Note: the presence of getSnapshotBeforeUpdate prevents any of the deprecated
+     * lifecycle events from running.
+     */
+    getSnapshotBeforeUpdate?(prevProps: Readonly<P>, prevState: Readonly<S>): SS | null;
+    /**
+     * Called immediately after updating occurs. Not called for the initial render.
+     *
+     * The snapshot is only present if getSnapshotBeforeUpdate is present and returns non-null.
+     */
+    componentDidUpdate?(prevProps: Readonly<P>, prevState: Readonly<S>, snapshot?: SS): void;
+}
+
+  // Components
+  interface ComponentLifecycle<P, S, SS = any> extends NewLifecycle<P, S, SS> {
+    componentWillMount?(): void
+    componentDidMount?(): void
+    componentWillReceiveProps?(nextProps: Readonly<P>, nextContext: any): void
+    shouldComponentUpdate?(nextProps: Readonly<P>, nextState: Readonly<S>, nextContext: any): boolean
+    componentWillUpdate?(nextProps: Readonly<P>, nextState: Readonly<S>, nextContext: any): void
+    componentWillUnmount?(): void
+    componentWillPreload?(params: { [propName: string]: any }): any
+    componentDidShow?(): void
+    componentDidHide?(): void
+    componentDidCatchError?(err: string): void
+    componentDidNotFound?(obj: PageNotFoundObject): void
+    onPullDownRefresh?(): void
+    onReachBottom?(): void
+    onPageScroll?(obj: PageScrollObject): void
+    onShareAppMessage?(obj: ShareAppMessageObject): ShareAppMessageReturn
+    onTabItemTap?(obj: TabItemTapObject): void
+    onResize?(obj: any): void
+  }
+
+  interface Component<P = {}, S = {}, SS = any> extends ComponentLifecycle<P, S, SS> {
     $scope?: any
   }
 
-  interface PageConfig {
+  interface ComponentOptions {
+    addGlobalClass?: boolean
+  }
+
+  interface FunctionComponent<P = {}> {
+    (props: Readonly<P>): JSX.Element
+    defaultProps?: Partial<P>
+    config?: Config
+    options?: ComponentOptions
+  }
+
+  type FC<P = {}> = FunctionComponent<P>
+
+  interface StatelessFunctionComponent {
+    (): JSX.Element
+  }
+
+  type SFC = StatelessFunctionComponent
+
+  interface ComponentClass<P = {}, S = any> extends StaticLifecycle<P, S> {
+    new (...args: any[]): Component<P, {}>
+    propTypes?: any
+    defaultProps?: Partial<P>
+    displayName?: string
+  }
+
+  // NOTE: only the Context object itself can get a displayName
+  // https://github.com/facebook/react-devtools/blob/e0b854e4c/backend/attachRendererFiber.js#L310-L325
+  // type Provider<T> = ProviderExoticComponent<ProviderProps<T>>;
+  // type Consumer<T> = ExoticComponent<ConsumerProps<T>>;
+  interface Context<T> {
+      Provider: ComponentClass<{ value: T }>;
+      // Consumer: Consumer<T>;
+      displayName?: string;
+  }
+  function createContext<T>(
+      defaultValue: T
+  ): Context<T>;
+
+
+  // This will technically work if you give a Consumer<T> or Provider<T> but it's deprecated and warns
+  /**
+   * Accepts a context object (the value returned from `React.createContext`) and returns the current
+   * context value, as given by the nearest context provider for the given context.
+   *
+   * @version 16.8.0
+   * @see https://reactjs.org/docs/hooks-reference.html#usecontext
+   */
+  function useContext<T>(context: Context<T>/*, (not public API) observedBits?: number|boolean */): T;
+
+
+  /**
+   * 微信小程序全局 Window 配置和页面配置的公共项目
+   */
+  interface CommonPageConfig {
     /**
      * 导航栏背景颜色，HexColor
      * default: #000000
      */
-    navigationBarBackgroundColor?: string,
+    navigationBarBackgroundColor?: string
     /**
      * 导航栏标题颜色，仅支持 black/white
      * default: 'white'
      */
-    navigationBarTextStyle?: 'white' | 'black',
+    navigationBarTextStyle?: 'white' | 'black'
     /**
      * 导航栏标题文字内容
      */
-    navigationBarTitleText?: string,
+    navigationBarTitleText?: string
     /**
      * 导航栏样式，仅支持以下值：
      * default 默认样式
      * custom 自定义导航栏
      */
-    navigationStyle?: string,
+    navigationStyle?: 'default' | 'custom'
     /**
      * 窗口的背景色， HexColor
      * default: #ffffff
      */
-    backgroundColor?: string,
+    backgroundColor?: string
     /**
      * 下拉背景字体、loading 图的样式，仅支持 dark/light
      * default: 'dark'
      */
-    backgroundTextStyle?: 'dark' | 'light',
+    backgroundTextStyle?: 'dark' | 'light'
+    /**
+     * 顶部窗口的背景色，仅 iOS 支持
+     * default: #ffffff
+     */
+    backgroundColorTop?: string
+    /**
+     * 底部窗口的背景色，仅 iOS 支持
+     * default: #ffffff
+     */
+    backgroundColorBottom?: string
     /**
      * 是否开启下拉刷新
      * default: false
      */
-    enablePullDownRefresh?: boolean,
+    enablePullDownRefresh?: boolean
     /**
      * 页面上拉触底事件触发时距页面底部距离，单位为px
      * default: 50
      */
     onReachBottomDistance?: number
+  }
+
+  interface PageConfig extends CommonPageConfig {
     /**
-     * 设置为 true 则页面整体不能上下滚动；只在页面配置中有效，无法在 app.json 中设置该项
+     * 设置为 true 则页面整体不能上下滚动；
+     * 只在页面配置中有效，无法在 app.json 中设置该项
      * default: false
      */
     disableScroll?: boolean
+    /**
+     * 禁止页面右滑手势返回
+     * default: false
+     * @since 微信客户端 7.0.0
+     *
+     * **注意** 自微信客户端 7.0.5 开始，页面配置中的 disableSwipeBack 属性将不再生效，
+     * 详情见[右滑手势返回能力调整](https://developers.weixin.qq.com/community/develop/doc/000868190489286620a8b27f156c01)公告
+     */
+    disableSwipeBack?: boolean
+  }
+
+  interface WindowConfig extends CommonPageConfig {
+    /**
+     * 屏幕旋转设置
+     * 支持 auto / portrait / landscape
+     * default: portrait
+     * 详见 [响应显示区域变化](https://developers.weixin.qq.com/miniprogram/dev/framework/view/resizable.html)
+     */
+    pageOrientation?: 'auto' | 'portrait' | 'landscape'
+    /**
+     * 是否允许下拉刷新
+     * default: NO
+     * 备注：下拉刷新生效的前提是 allowsBounceVertical 值为 YES
+     */
+    pullRefresh?: 'YES' | 'NO' | boolean
+    /**
+     * 是否允许向下拉拽
+     * default: YES
+     */
+    allowsBounceVertical?:  'YES' | 'NO'
   }
 
   interface TarbarList {
     /**
      * 页面路径，必须在 pages 中先定义
      */
-    pagePath: string,
+    pagePath: string
     /**
      * tab 上按钮文字
      */
-    text: string,
+    text: string
     /**
      * 图片路径，icon 大小限制为40kb，建议尺寸为 81px * 81px，当 postion 为 top 时，此参数无效，不支持网络图片
      */
-    iconPath?: string,
+    iconPath?: string
     /**
      * 选中时的图片路径，icon 大小限制为40kb，建议尺寸为 81px * 81px ，当 postion 为 top 时，此参数无效
      */
-    selectedIconPath?: string,
+    selectedIconPath?: string
   }
 
   interface TabBar {
     /**
      * tab 上的文字默认颜色
      */
-    color?: string,
+    color?: string
     /**
      * tab 上的文字选中时的颜色
      */
-    selectedColor?: string,
+    selectedColor?: string
     /**
      * tab 的背景色
      */
-    backgroundColor?: string,
+    backgroundColor?: string
     /**
      * tabbar上边框的颜色， 仅支持 black/white
-     * default: black
+     * @default: black
      */
-    borderStyle?: 'black' | 'white',
+    borderStyle?: 'black' | 'white'
     /**
      * tabar 的位置，可选值 bottom、top
-     * default: 'bottom'
+     * @default: 'bottom'
      */
-    position?: 'bottom' | 'top',
+    position?: 'bottom' | 'top'
+    /**
+     * 自定义 tabBar，见[详情](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/custom-tabbar.html)
+     * @default false
+     * @since 2.1.0
+     */
+    custom?: boolean
 
     list: TarbarList[]
   }
@@ -227,11 +625,19 @@ declare namespace Taro {
      * 分包根路径
      * - 注意：不能放在主包pages目录下
      */
-    root: string,
+    root: string
     /**
      * 分包路径下的所有页面配置
      */
     pages: string[]
+    /**
+     * 分包别名，分包预下载时可以使用
+     */
+    name?: string
+    /**
+     * 分包是否是独立分包
+     */
+    independent?: boolean
   }
 
   interface Plugins {
@@ -257,12 +663,20 @@ declare namespace Taro {
     }
   }
 
+  interface Permission {
+    [key: string]: {
+      /**
+       * 小程序获取权限时展示的接口用途说明。最长30个字符
+       */
+      desc: string
+    }
+  }
   interface AppConfig {
     /**
      * 接受一个数组，每一项都是字符串，来指定小程序由哪些页面组成，数组的第一项代表小程序的初始页面
      */
-    pages?: string[],
-    tabBar?: TabBar,
+    pages?: string[]
+    tabBar?: TabBar
     /**
      * 各类网络请求的超时时间，单位均为毫秒。
      */
@@ -297,13 +711,13 @@ declare namespace Taro {
      * Worker 代码放置的目录
      * 使用 Worker 处理多线程任务时，设置 Worker 代码放置的目录
      * @since 1.9.90
-      */
+     */
     workers?: string
     /**
      * 申明需要后台运行的能力，类型为数组。目前支持以下项目：
      * @since 微信客户端 6.7.2 及以上版本支持
      */
-    requiredBackgroundModes?: ["audio"]
+    requiredBackgroundModes?: ['audio']
     /**
      * 使用到的插件
      * @since 1.9.6
@@ -328,84 +742,149 @@ declare namespace Taro {
      * @since 2.4.0
      */
     navigateToMiniProgramAppIdList?: string[]
+    /**
+     * 小程序接口权限相关设置
+     * @since 微信客户端 7.0.0
+     */
+    permission?: Permission
   }
 
   interface Config extends PageConfig, AppConfig {
     usingComponents?: {
       [key: string]: string
-    },
-    window?: PageConfig
+    }
+    window?: WindowConfig
+    cloud?: boolean
   }
 
   interface ComponentOptions {
     addGlobalClass?: boolean
   }
 
+  interface RouterInfo {
+    /**
+     * 在跳转成功的目标页的生命周期方法里通过 `this.$router.params` 获取到传入的参数
+     *
+     * @example
+     * componentWillMount () {
+     *   console.log(this.$router.params)
+     * }
+     *
+     * @see 参考[路由功能：路由传参](https://nervjs.github.io/taro/docs/router.html#%E8%B7%AF%E7%94%B1%E4%BC%A0%E5%8F%82)一节
+    */
+    params: {
+      [key: string]: string
+    } & {
+      path?: string
+      scene?: number | string
+      query?: {[key: string]: string} | string
+      shareTicket?: string
+      referrerInfo?: {[key: string]: any} | string
+    }
+    /**
+    * 可以于 `this.$router.preload` 中访问到 `this.$preload` 传入的参数
+    *
+    * **注意** 上一页面没有使用 `this.$preload` 传入任何参数时 `this.$router` 不存在 `preload` 字段
+    * 请开发者在使用时自行判断
+    *
+    * @example
+    * componentWillMount () {
+    *   console.log('preload: ', this.$router.preload)
+    * }
+    *
+    * @see 参考[性能优化实践：在小程序中，可以使用 `this.$preload` 函数进行页面跳转传参](https://nervjs.github.io/taro/docs/optimized-practice.html#%E5%9C%A8%E5%B0%8F%E7%A8%8B%E5%BA%8F%E4%B8%AD-%E5%8F%AF%E4%BB%A5%E4%BD%BF%E7%94%A8-this-preload-%E5%87%BD%E6%95%B0%E8%BF%9B%E8%A1%8C%E9%A1%B5%E9%9D%A2%E8%B7%B3%E8%BD%AC%E4%BC%A0%E5%8F%82)一节
+    */
+    preload?: {
+      [key: string]: string
+    }
+  }
+
   class Component<P, S> {
-    constructor(props?: P, context?: any);
+    constructor(props?: P, context?: any)
 
-    config?: Config;
+    config?: Config
 
-    options?: ComponentOptions;
+    options?: ComponentOptions
 
     $componentType: 'PAGE' | 'COMPONENT'
 
-    $router: {
-      params: any
-    }
+    $router: RouterInfo
 
-    setState<K extends keyof S>(
-        state: ((prevState: Readonly<S>, props: P) => (Pick<S, K> | S)) | (Pick<S, K> | S),
-        callback?: () => any
-    ): void;
+    $preloadData: any
 
-    forceUpdate(callBack?: () => any): void;
+    /**
+     * 使用 `this.$preload` 函数进行页面跳转传参
+     * @example this.$preload('key', 'val');
+     * @example this.$preload({
+                  x: 1,
+                  y: 2
+                });
+     * @see https://nervjs.github.io/taro/docs/best-practice.html
+     */
+    $preload(key: string, value: any): void
+    $preload(key: object): void
 
-    render(): any;
+    setState<K extends keyof S>(state: ((prevState: Readonly<S>, props: P) => Pick<S, K> | S) | (Pick<S, K> | S), callback?: () => any): void
 
-    props: Readonly<P> & Readonly<{ children?: any }>;
-    state: Readonly<S>;
-    context: any;
+    forceUpdate(callBack?: () => any): void
+
+    render(): any
+
+    props: Readonly<P> & Readonly<{ children?: any }>
+    state: Readonly<S>
+    context: any
     refs: {
-        [key: string]: any
-    };
+      [key: string]: any
+    }
   }
 
-  class PureComponent<P = {}, S = {}> extends Component<P, S> { }
+  class PureComponent<P = {}, S = {}> extends Component<P, S> {}
+
+  function memo<P = {}>(
+    FunctionComponent: FunctionComponent<P>,
+    compare?: (oldProps: P, newProps: P) => Boolean
+  ): FunctionComponent<P>
 
   // Events
   class Events {
     /**
      * 监听一个事件，接受参数
      */
-    on(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    on(eventName: string | symbol, listener: (...args: any[]) => void): this
 
     /**
      * 添加一个事件监听，并在事件触发完成之后移除Callbacks链
      */
-    once(eventName: string | symbol, listener: (...args: any[]) => void): this;
+    once(eventName: string | symbol, listener: (...args: any[]) => void): this
 
     /**
      * 取消监听一个事件
      */
-    off(eventName: string | symbol, listener?: (...args: any[]) => void): this;
+    off(eventName: string | symbol, listener?: (...args: any[]) => void): this
+
+    /**
+     * 取消监听的所有事件
+     */
+    off(): this
 
     /**
      * 触发一个事件，传参
      */
-    trigger(eventName: string | symbol, ...args: any[]): boolean;
+    trigger(eventName: string | symbol, ...args: any[]): boolean
   }
 
   // eventCenter
 
   namespace eventCenter {
-    function on(eventName: string | symbol, listener: (...args: any[]) => void): void;
+    function on(eventName: string | symbol, listener: (...args: any[]) => void): void
 
-    function once(eventName: string | symbol, listener: (...args: any[]) => void): void;
+    function once(eventName: string | symbol, listener: (...args: any[]) => void): void
 
-    function off(eventName: string | symbol, listener?: (...args: any[]) => void): void;
+    function off(eventName: string | symbol, listener?: (...args: any[]) => void): void
 
-    function trigger(eventName: string | symbol, ...args: any[]): boolean;
+    function off(): void
+
+    function trigger(eventName: string | symbol, ...args: any[]): boolean
   }
 
   // ENV_TYPE
@@ -419,14 +898,46 @@ declare namespace Taro {
     TT = 'TT'
   }
 
-  function getEnv(): ENV_TYPE.WEAPP | ENV_TYPE.WEB | ENV_TYPE.RN | ENV_TYPE.ALIPAY | ENV_TYPE.TT | ENV_TYPE.SWAN;
+  function getEnv(): ENV_TYPE.WEAPP | ENV_TYPE.WEB | ENV_TYPE.RN | ENV_TYPE.ALIPAY | ENV_TYPE.TT | ENV_TYPE.SWAN
 
-  function render(component: Component | JSX.Element, element: Element | null): any;
+  function render(component: Component | JSX.Element, element: Element | null): any
 
-  function internal_safe_set (...arg: any[]): any;
-  function internal_safe_get (...arg: any[]): any;
+  function internal_safe_set(...arg: any[]): any
+  function internal_safe_get(...arg: any[]): any
+
+  type MessageType = 'info' | 'success' | 'error' | 'warning'
+
+  interface AtMessageOptions {
+    message: string
+    type?: MessageType
+    duration?: number
+  }
+
+  function atMessage(options: AtMessageOptions): void
 
   function pxTransform(size: number): string
+  function initPxTransform(config: { designWidth: number; deviceRatio: object })
+
+  interface RequestParams extends request.Param<any> {
+    [propName: string]: any
+  }
+
+  type interceptor = (chain: Chain) => any
+
+  interface Chain {
+    index: number
+    requestParams: RequestParams
+    interceptors: interceptor[]
+    proceed(requestParams: RequestParams): any
+  }
+
+  namespace interceptors {
+    function logInterceptor(chain: Chain): Promise<any>
+
+    function timeoutInterceptor(chain: Chain): Promise<any>
+  }
+
+  function addInterceptor(interceptor: interceptor): any
 
   /**
    * 小程序引用插件 JS 接口
@@ -443,7 +954,7 @@ declare namespace Taro {
    */
 
   namespace request {
-    type Promised<T extends any | string | ArrayBuffer = any> = {
+    type Promised < T extends any | string | ArrayBuffer = any > = {
       /**
        * 开发者服务器返回的数据
        *
@@ -467,7 +978,18 @@ declare namespace Taro {
        */
       header: any
     }
-    type Param<P extends any | string | ArrayBuffer = any> = {
+    /**
+     * 网络请求任务对象
+     * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/request/RequestTask.html
+     */
+    interface requestTask<T> extends Promise<request.Promised<T>> {
+      /**
+       * 中断请求任务
+       * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/request/RequestTask.abort.html
+       */
+      abort(): void
+    }
+    type Param < P extends any | string | ArrayBuffer = any > = {
       /**
        * 开发者服务器接口地址
        */
@@ -498,85 +1020,109 @@ declare namespace Taro {
        * @default text
        * @since 1.7.0
        */
-      responseType?: string,
+      responseType?: string
       /**
        * 设置 H5 端是否使用jsonp方式获取数据
        *
        * @default false
        */
-      jsonp?: boolean,
+      jsonp?: boolean
       /**
        * 设置 H5 端 jsonp 请求 url 是否需要被缓存
        *
        * @default false
        */
-      jsonpCache?: boolean,
+      jsonpCache?: boolean
       /**
        * 设置 H5 端是否允许跨域请求。有效值：no-cors, cors, same-origin
        *
        * @default same-origin
        */
-      mode?: 'no-cors' | 'cors' | 'same-origin',
+      mode?: 'no-cors' | 'cors' | 'same-origin'
       /**
        * 设置 H5 端是否携带 Cookie。有效值：include, same-origin, omit
        *
        * @default omit
        */
-      credentials?: 'include' | 'same-origin' | 'omit',
+      credentials?: 'include' | 'same-origin' | 'omit'
       /**
        * 设置 H5 端缓存模式。有效值：default, no-cache, reload, force-cache, only-if-cached
        *
        * @default default
        */
-      cache?: 'default' | 'no-cache' | 'reload' | 'force-cache' | 'only-if-cached',
+      cache?: 'default' | 'no-cache' | 'reload' | 'force-cache' | 'only-if-cached'
       /**
        * 设置 H5 端请求响应超时时间
        *
        * @default 2000
        */
-      timeout?: number,
+      timeout?: number
       /**
        * 设置 H5 端请求重试次数
        *
        * @default 2
        */
-      retryTimes?: number,
+      retryTimes?: number
       /**
        * 设置 H5 端请求的兜底接口
        */
-      backup?: string | string[],
+      backup?: string | string[]
       /**
        * 设置 H5 端请求响应的数据校验函数，若返回 false，则请求兜底接口，若无兜底接口，则报请求失败
        */
-      dataCheck?(): boolean,
+      dataCheck?(): boolean
       /**
        * 设置 H5 端请求是否使用缓存
        *
        * @default false
        */
-      useStore?: boolean,
+      useStore?: boolean
       /**
        * 设置 H5 端请求缓存校验的 key
        */
-      storeCheckKey?: string,
+      storeCheckKey?: string
       /**
        * 设置 H5 端请求缓存签名
        */
-      storeSign?: string,
+      storeSign?: string
       /**
        * 设置 H5 端请求校验函数，一般不需要设置
        */
       storeCheck?(): boolean
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 发起网络请求。**使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html)**。
    *
    * **返回值：**
    *
-   * @since 1.4.0
+   * @returns {request.requestTask} 返回一个 `requestTask` 对象，通过 `requestTask`，可中断请求任务。
    *
-   * 返回一个 `requestTask` 对象，通过 `requestTask`，可中断请求任务。
+   * @since 1.4.0
    *
    * **Bug & Tip：**
    *
@@ -586,56 +1132,55 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.request({
-   *       url: 'test.php', //仅为示例，并非真实的接口地址
-   *       data: {
-   *          x: '' ,
-   *          y: ''
-   *       },
-   *       header: {
-   *           'content-type': 'application/json' // 默认值
-   *       },
-   *       success: function(res) {
-   *         console.log(res.data)
-   *       }
-   *     })
-   *     ```
+   * @example
+   * // 回调函数(Callback)用法：
+   * const requestTask = Taro.request({
+   *   url: 'test.php', //仅为示例，并非真实的接口地址
+   *   data: {
+   *     x: '' ,
+   *     y: ''
+   *   },
+   *   header: {
+   *     'content-type': 'application/json' // 默认值
+   *   },
+   *   success: function(res) {
+   *     console.log(res.data)
+   *   }
+   * })
+   * requestTask.abort()
    *
-   * **示例代码：**
+   * // Promise 用法：
+   * const requestTask = Taro.request({
+   *   url: 'test.php', //仅为示例，并非真实的接口地址
+   *   data: {
+   *     x: '' ,
+   *     y: ''
+   *   },
+   *   header: {
+   *     'content-type': 'application/json' // 默认值
+   *   },
+   *   success: function(res) {
+   *     console.log(res.data)
+   *   }
+   * })
+   * requestTask.then(res => {
+   *   console.log(res.data)
+   * })
+   * requestTask.abort()
    *
-   *     ```javascript
-   *     const requestTask = Taro.request({
-   *       url: 'test.php', //仅为示例，并非真实的接口地址
-   *       data: {
-   *          x: '' ,
-   *          y: ''
-   *       },
-   *       header: {
-   *           'content-type': 'application/json'
-   *       },
-   *       success: function(res) {
-   *         console.log(res.data)
-   *       }
-   *     })
+   * // async/await 用法：
+   * const requestTask = Taro.request(params)
+   * const res = await requestTask
+   * requestTask.abort()
    *
-   *     requestTask.abort() // 取消请求任务
-   *     ```
+   * // 不需要 abort 的 async/await 用法：
+   * const res = await Taro.request(params)
+   *
    * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html
    */
-  function request<T = any, U = any>(OBJECT: request.Param<U>): Promise<request.Promised<T>>
+  function request<T = any, U = any>(OBJECT: request.Param<U>): request.requestTask<T>
 
-  type arrayBuffer = Uint8Array |
-    Int8Array |
-    Uint8Array |
-    Uint8ClampedArray |
-    Int16Array |
-    Uint16Array |
-    Int32Array |
-    Uint32Array |
-    Float32Array |
-    Float64Array |
-    ArrayBuffer
+  type arrayBuffer = Uint8Array | Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | ArrayBuffer
 
   /**
    * 将 ArrayBuffer 数据转成 Base64 字符串
@@ -704,12 +1249,38 @@ declare namespace Taro {
        * HTTP 请求中其他额外的 form data
        */
       formData?: any
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
-   * 将本地资源上传到开发者服务器，客户端发起一个 HTTPS POST 请求，其中 `content-type` 为 `multipart/form-data` 。**使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/api/api-network.html)**。
+   * 将本地资源上传到开发者服务器，客户端发起一个 HTTPS POST 请求，其中 `content-type` 为 `multipart/form-data` 。
+   * **使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)**。
    *
-   * 如页面通过 [Taro.chooseImage](https://developers.weixin.qq.com/miniprogram/dev/api/media-picture.html#wxchooseimageobject) 等接口获取到一个本地资源的临时文件路径后，可通过此接口将本地资源上传到指定服务器。
+   * 如页面通过 [Taro.chooseImage](https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.chooseImage.html)
+   * 等接口获取到一个本地资源的临时文件路径后，可通过此接口将本地资源上传到指定服务器。
    *
    * **返回值：**
    *
@@ -719,51 +1290,49 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.chooseImage({
-   *       success: function(res) {
-   *         var tempFilePaths = res.tempFilePaths
-   *         Taro.uploadFile({
-   *           url: 'https://example.weixin.qq.com/upload', //仅为示例，非真实的接口地址
-   *           filePath: tempFilePaths[0],
-   *           name: 'file',
-   *           formData:{
-   *             'user': 'test'
-   *           },
-   *           success: function(res){
-   *             var data = res.data
-   *             //do something
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Taro.chooseImage({
+     success: function(res) {
+       var tempFilePaths = res.tempFilePaths
+       Taro.uploadFile({
+         url: 'https://example.weixin.qq.com/upload', //仅为示例，非真实的接口地址
+         filePath: tempFilePaths[0],
+         name: 'file',
+         formData:{
+           'user': 'test'
+         },
+         success: function(res){
+           var data = res.data
+           //do something
+         }
+       })
+     }
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const uploadTask = Taro.uploadFile({
-   *         url: 'http://example.weixin.qq.com/upload', //仅为示例，非真实的接口地址
-   *         filePath: tempFilePaths[0],
-   *         name: 'file',
-   *         formData:{
-   *             'user': 'test'
-   *         },
-   *         success: function(res){
-   *             var data = res.data
-   *             //do something
-   *         }
-   *     })
-   *
-   *     uploadTask.onProgressUpdate((res) => {
-   *         console.log('上传进度', res.progress)
-   *         console.log('已经上传的数据长度', res.totalBytesSent)
-   *         console.log('预期需要上传的数据总长度', res.totalBytesExpectedToSend)
-   *     })
-   *
-   *     uploadTask.abort() // 取消上传任务
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-file.html#wxuploadfileobject
+   ```javascript
+   const uploadTask = Taro.uploadFile({
+       url: 'http://example.weixin.qq.com/upload', //仅为示例，非真实的接口地址
+       filePath: tempFilePaths[0],
+       name: 'file',
+       formData:{
+           'user': 'test'
+       },
+       success: function(res){
+           var data = res.data
+           //do something
+       }
+   })
+         uploadTask.progress((res) => {
+       console.log('上传进度', res.progress)
+       console.log('已经上传的数据长度', res.totalBytesSent)
+       console.log('预期需要上传的数据总长度', res.totalBytesExpectedToSend)
+   })
+         uploadTask.abort() // 取消上传任务
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/upload/wx.uploadFile.html
    */
   function uploadFile(OBJECT: uploadFile.Param): uploadFile.UploadTask
 
@@ -787,7 +1356,31 @@ declare namespace Taro {
        * HTTP 请求 Header，header 中不能设置 Referer
        */
       header?: any
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
     /**
      * 下载进度
      */
@@ -815,7 +1408,8 @@ declare namespace Taro {
     }
   }
   /**
-   * 下载文件资源到本地，客户端直接发起一个 HTTP GET 请求，返回文件的本地临时路径。**使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/api/api-network.html)**。
+   * 下载文件资源到本地，客户端直接发起一个 HTTP GET 请求，返回文件的本地临时路径。
+   * **使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)**。
    *
    * **返回值：**
    *
@@ -829,51 +1423,45 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.downloadFile({
-   *       url: 'https://example.com/audio/123', //仅为示例，并非真实的资源
-   *       success: function(res) {
-   *         // 只要服务器有响应数据，就会把响应内容写入文件并进入 success 回调，业务需要自行判断是否下载到了想要的内容
-   *         if (res.statusCode === 200) {
-   *             Taro.playVoice({
-   *               filePath: res.tempFilePath
-   *             })
-   *         }
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Taro.downloadFile({
+     url: 'https://example.com/audio/123', //仅为示例，并非真实的资源
+     success: function(res) {
+       // 只要服务器有响应数据，就会把响应内容写入文件并进入 success 回调，业务需要自行判断是否下载到了想要的内容
+       if (res.statusCode === 200) {
+           Taro.playVoice({
+             filePath: res.tempFilePath
+           })
+       }
+     }
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const downloadTask = Taro.downloadFile({
-   *         url: 'http://example.com/audio/123', //仅为示例，并非真实的资源
-   *         success: function(res) {
-   *             Taro.playVoice({
-   *                 filePath: res.tempFilePath
-   *             })
-   *         }
-   *     })
-   *
-   *     downloadTask.onProgressUpdate((res) => {
-   *         console.log('下载进度', res.progress)
-   *         console.log('已经下载的数据长度', res.totalBytesWritten)
-   *         console.log('预期需要下载的数据总长度', res.totalBytesExpectedToWrite)
-   *     })
-   *
-   *     downloadTask.abort() // 取消下载任务
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-file.html#wxdownloadfileobject
+   ```javascript
+   const downloadTask = Taro.downloadFile({
+       url: 'http://example.com/audio/123', //仅为示例，并非真实的资源
+       success: function(res) {
+           Taro.playVoice({
+               filePath: res.tempFilePath
+           })
+       }
+   })
+         downloadTask.progress((res) => {
+       console.log('下载进度', res.progress)
+       console.log('已经下载的数据长度', res.totalBytesWritten)
+       console.log('预期需要下载的数据总长度', res.totalBytesExpectedToWrite)
+   })
+         downloadTask.abort() // 取消下载任务
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html
    */
   function downloadFile(OBJECT: downloadFile.Param): downloadFile.DownloadTask
 
   namespace connectSocket {
-    type Promised = {
-      /**
-       * 返回一个SocketTask
-       */
-      socketTask: SocketTask
-    }
+    type Promised = SocketTask
+
     type Param = {
       /**
        * 开发者服务器接口地址，必须是 wss 协议，且域名必须是后台配置的合法域名
@@ -896,27 +1484,28 @@ declare namespace Taro {
     }
   }
   /**
-   * 创建一个 [WebSocket](https://developer.mozilla.org/zh-CN/docs/Web/API/WebSocket) 连接。**使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/api/api-network.html)**。
+   * 创建一个 [WebSocket](https://developer.mozilla.org/zh-CN/docs/Web/API/WebSocket) 连接。
+   * **使用前请先阅读[说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)**。
    *
-   * **基础库 1.7.0 之前，一个微信小程序同时只能有一个 WebSocket 连接，如果当前已存在一个 WebSocket 连接，会自动关闭该连接，并重新创建一个 WebSocket 连接。基础库版本 1.7.0 及以后，支持存在多个 WebSokcet 连接，每次成功调用 Taro.connectSocket 会返回一个新的 [SocketTask](https://developers.weixin.qq.com/miniprogram/dev/api/socket-task.html)。**
+   * **基础库 1.7.0 之前，一个微信小程序同时只能有一个 WebSocket 连接，如果当前已存在一个 WebSocket 连接，会自动关闭该连接，并重新创建一个 WebSocket 连接。基础库版本 1.7.0 及以后，支持存在多个 WebSokcet 连接，每次成功调用 Taro.connectSocket 会返回一个新的 [SocketTask](https://developers.weixin.qq.com/minigame/dev/api/network/websocket/SocketTask.html)。**
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.connectSocket({
-   *       url: 'wss://example.qq.com',
-   *       data:{
-   *         x: '',
-   *         y: ''
-   *       },
-   *       header:{
-   *         'content-type': 'application/json'
-   *       },
-   *       protocols: ['protocol1'],
-   *       method:"GET"
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxconnectsocketobject
+   ```javascript
+   Taro.connectSocket({
+     url: 'wss://example.qq.com',
+     data:{
+       x: '',
+       y: ''
+     },
+     header:{
+       'content-type': 'application/json'
+     },
+     protocols: ['protocol1'],
+     method:"GET"
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.connectSocket.html
    */
   function connectSocket(OBJECT: connectSocket.Param): Promise<connectSocket.Promised>
 
@@ -936,15 +1525,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.connectSocket({
-   *       url: 'test.php'
-   *     })
-   *     Taro.onSocketOpen(function(res) {
-   *       console.log('WebSocket连接已打开！')
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxonsocketopencallback
+   ```javascript
+   Taro.connectSocket({
+     url: 'test.php'
+   })
+   Taro.onSocketOpen(function(res) {
+     console.log('WebSocket连接已打开！')
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.onSocketOpen.html
    */
   function onSocketOpen(callback?: onSocketOpen.Param): void
 
@@ -953,18 +1542,18 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.connectSocket({
-   *       url: 'test.php'
-   *     })
-   *     Taro.onSocketOpen(function(res){
-   *       console.log('WebSocket连接已打开！')
-   *     })
-   *     Taro.onSocketError(function(res){
-   *       console.log('WebSocket连接打开失败，请检查！')
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxonsocketerrorcallback
+   ```javascript
+   Taro.connectSocket({
+     url: 'test.php'
+   })
+   Taro.onSocketOpen(function(res){
+     console.log('WebSocket连接已打开！')
+   })
+   Taro.onSocketError(function(res){
+     console.log('WebSocket连接打开失败，请检查！')
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.onSocketError.html
    */
   function onSocketError(CALLBACK: any): void
 
@@ -977,42 +1566,40 @@ declare namespace Taro {
     }
   }
   /**
-   * 通过 WebSocket 连接发送数据，需要先 [Taro.connectSocket](https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxconnectsocketobject)，并在 [Taro.onSocketOpen](https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxonsocketopencallback) 回调之后才能发送。
+   * 通过 WebSocket 连接发送数据，需要先 [Taro.connectSocket](https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.connectSocket.html) 回调之后才能发送。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     var socketOpen = false
-   *     var socketMsgQueue = []
-   *     Taro.connectSocket({
-   *       url: 'test.php'
-   *     })
-   *
-   *     Taro.onSocketOpen(function(res) {
-   *       socketOpen = true
-   *       for (var i = 0; i < socketMsgQueue.length; i++){
-   *          sendSocketMessage(socketMsgQueue[i])
-   *       }
-   *       socketMsgQueue = []
-   *     })
-   *
-   *     function sendSocketMessage(msg) {
-   *       if (socketOpen) {
-   *         Taro.sendSocketMessage({
-   *           data:msg
-   *         })
-   *       } else {
-   *          socketMsgQueue.push(msg)
-   *       }
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxsendsocketmessageobject
+   ```javascript
+   var socketOpen = false
+   var socketMsgQueue = []
+   Taro.connectSocket({
+     url: 'test.php'
+   })
+         Taro.onSocketOpen(function(res) {
+     socketOpen = true
+     for (var i = 0; i < socketMsgQueue.length; i++){
+        sendSocketMessage(socketMsgQueue[i])
+     }
+     socketMsgQueue = []
+   })
+         function sendSocketMessage(msg) {
+     if (socketOpen) {
+       Taro.sendSocketMessage({
+         data:msg
+       })
+     } else {
+        socketMsgQueue.push(msg)
+     }
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.sendSocketMessage.html
    */
   function sendSocketMessage(OBJECT: sendSocketMessage.Param): Promise<any>
 
   namespace onSocketMessage {
-    type Param<T = any> = (res: ParamParam<T>) => any
-    type ParamParam<T extends any | string | ArrayBuffer = any> = {
+    type Param < T = any > = (res: ParamParam<T>) => any
+    type ParamParam < T extends any | string | ArrayBuffer = any > = {
       /**
        * 服务器返回的消息
        */
@@ -1024,16 +1611,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.connectSocket({
-   *       url: 'test.php'
-   *     })
-   *
-   *     Taro.onSocketMessage(function(res) {
-   *       console.log('收到服务器内容：' + res.data)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxonsocketmessagecallback
+   ```javascript
+   Taro.connectSocket({
+     url: 'test.php'
+   })
+         Taro.onSocketMessage(function(res) {
+     console.log('收到服务器内容：' + res.data)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.onSocketMessage.html
    */
   function onSocketMessage<T = any>(CALLBACK?: onSocketMessage.Param<T>): void
 
@@ -1055,7 +1641,7 @@ declare namespace Taro {
   }
   /**
    * 关闭 WebSocket 连接。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxclosesocketobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.closeSocket.html
    */
   function closeSocket(OBJECT?: closeSocket.Param): Promise<any>
 
@@ -1066,7 +1652,7 @@ declare namespace Taro {
    *
    * @since 1.7.0
    *
-   * 返回一个 [SocketTask](https://developers.weixin.qq.com/miniprogram/dev/api/socket-task.html)。
+   * 返回一个 [SocketTask](https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/SocketTask.html)。
    *
    * **Bug & Tip：**
    *
@@ -1074,23 +1660,21 @@ declare namespace Taro {
    *
    * **示例：**
    *
-   *     ```javascript
-   *     Taro.connectSocket({
-   *       url: 'test.php'
-   *     })
-   *
-   *     //注意这里有时序问题，
-   *     //如果 Taro.connectSocket 还没回调 Taro.onSocketOpen，而先调用 Taro.closeSocket，那么就做不到关闭 WebSocket 的目的。
-   *     //必须在 WebSocket 打开期间调用 Taro.closeSocket 才能关闭。
-   *     Taro.onSocketOpen(function() {
-   *       Taro.closeSocket()
-   *     })
-   *
-   *     Taro.onSocketClose(function(res) {
-   *       console.log('WebSocket 已关闭！')
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html#wxonsocketclosecallback
+   ```javascript
+   Taro.connectSocket({
+     url: 'test.php'
+   })
+         //注意这里有时序问题，
+   //如果 Taro.connectSocket 还没回调 Taro.onSocketOpen，而先调用 Taro.closeSocket，那么就做不到关闭 WebSocket 的目的。
+   //必须在 WebSocket 打开期间调用 Taro.closeSocket 才能关闭。
+   Taro.onSocketOpen(function() {
+     Taro.closeSocket()
+   })
+         Taro.onSocketClose(function(res) {
+     console.log('WebSocket 已关闭！')
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.onSocketClose.html
    */
   function onSocketClose(CALLBACK?: (res: any) => any): void
 
@@ -1173,8 +1757,8 @@ declare namespace Taro {
       }
     }
     namespace onMessage {
-      type Param<T = any> = (res: ParamParam<T>) => any
-      type ParamParam<T extends any | string | ArrayBuffer = any> = {
+      type Param < T = any > = (res: ParamParam<T>) => any
+      type ParamParam < T extends any | string | ArrayBuffer = any > = {
         /**
          * 服务器返回的消息
          */
@@ -1185,38 +1769,49 @@ declare namespace Taro {
   /**
    * @since 1.7.0
    *
-   * WebSocket 任务，可通过 [Taro.connectSocket()](https://developers.weixin.qq.com/miniprogram/dev/api/network-socket.html) 接口创建返回。
+   * WebSocket 任务，可通过 [Taro.connectSocket()](https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/SocketTask.html) 接口创建返回。
    */
   class SocketTask {
+
+    /**
+     * websocket 当前的连接 ID。
+     */
+    readonly socketTaskId: number
+
     /**
      * websocket 当前的连接状态。
      */
-    readonly readyState: boolean;
+    readonly readyState: number
+
+    /**
+     * websocket 接口调用结果。
+     */
+    readonly errMsg: string
 
     /**
      * websocket 状态值：连接中。
      */
-    readonly CONNECTING: boolean;
+    readonly CONNECTING: number
 
     /**
      * websocket 状态值：已连接。
      */
-    readonly OPEN: boolean;
+    readonly OPEN: number
 
     /**
      * websocket 状态值：关闭中。
      */
-    readonly CLOSING: boolean;
+    readonly CLOSING: number
 
     /**
      * websocket 状态值：已关闭。
-    */
-    readonly CLOSED: boolean;
+     */
+    readonly CLOSED: number
 
     /**
      * 浏览器 websocket 实例。（h5 端独有）
      */
-    readonly ws: WebSocket;
+    readonly ws: WebSocket
 
     /**
      *
@@ -1288,6 +1883,14 @@ declare namespace Taro {
        */
       size: number
     }
+    type ParamPropTempFiles = ParamPropTempFilesItem[]
+    type ParamPropTempFilesItem = {
+      path: string
+      size: number
+    }
+    type ParamPropSuccess = (res: { tempFilePaths: string[]; tempFiles: ParamPropTempFiles }) => void
+    type ParamPropFail = (err: any) => void
+    type ParamPropComplete = () => any
     type Param = {
       /**
        * 最多可以选择的图片张数，默认9
@@ -1301,6 +1904,12 @@ declare namespace Taro {
        * album 从相册选图，camera 使用相机，默认二者都有
        */
       sourceType?: string[]
+      /**
+       * success 回调
+       */
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
   }
   /**
@@ -1308,18 +1917,18 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.chooseImage({
-   *       count: 1, // 默认9
-   *       sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
-   *       sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
-   *       success: function (res) {
-   *         // 返回选定照片的本地文件路径列表，tempFilePath可以作为img标签的src属性显示图片
-   *         var tempFilePaths = res.tempFilePaths
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-picture.html#wxchooseimageobject
+   ```javascript
+   Taro.chooseImage({
+     count: 1, // 默认9
+     sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+     sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+     success: function (res) {
+       // 返回选定照片的本地文件路径列表，tempFilePath可以作为img标签的src属性显示图片
+       var tempFilePaths = res.tempFilePaths
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.chooseImage.html
    */
   function chooseImage(OBJECT?: chooseImage.Param): Promise<chooseImage.Promised>
 
@@ -1340,13 +1949,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.previewImage({
-   *       current: '', // 当前显示图片的http链接
-   *       urls: [] // 需要预览的图片http链接列表
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-picture.html#wxpreviewimageobject
+   ```javascript
+   Taro.previewImage({
+     current: '', // 当前显示图片的http链接
+     urls: [] // 需要预览的图片http链接列表
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.previewImage.html
    */
   function previewImage(OBJECT: previewImage.Param): Promise<any>
 
@@ -1402,28 +2011,27 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getImageInfo({
-   *       src: 'images/a.jpg',
-   *       success: function (res) {
-   *         console.log(res.width)
-   *         console.log(res.height)
-   *       }
-   *     })
-   *
-   *     Taro.chooseImage({
-   *       success: function (res) {
-   *         Taro.getImageInfo({
-   *           src: res.tempFilePaths[0],
-   *           success: function (res) {
-   *             console.log(res.width)
-   *             console.log(res.height)
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-picture.html#wxgetimageinfoobject
+   ```javascript
+   Taro.getImageInfo({
+     src: 'images/a.jpg',
+     success: function (res) {
+       console.log(res.width)
+       console.log(res.height)
+     }
+   })
+         Taro.chooseImage({
+     success: function (res) {
+       Taro.getImageInfo({
+         src: res.tempFilePaths[0],
+         success: function (res) {
+           console.log(res.width)
+           console.log(res.height)
+         }
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.getImageInfo.html
    */
   function getImageInfo(OBJECT: getImageInfo.Param): Promise<getImageInfo.Promised>
 
@@ -1444,17 +2052,17 @@ declare namespace Taro {
   /**
    * @since 1.2.0
    *
-   * 保存图片到系统相册。需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.writePhotosAlbum
+   * 保存图片到系统相册。需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.writePhotosAlbum
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.saveImageToPhotosAlbum({
-   *         success(res) {
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-picture.html#wxsaveimagetophotosalbumobject
+   ```javascript
+   Taro.saveImageToPhotosAlbum({
+       success(res) {
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.saveImageToPhotosAlbum.html
    */
   function saveImageToPhotosAlbum(OBJECT: saveImageToPhotosAlbum.Param): Promise<saveImageToPhotosAlbum.Promised>
 
@@ -1468,12 +2076,12 @@ declare namespace Taro {
     type Param = {}
   }
   /**
-   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.getRecorderManager](https://developers.weixin.qq.com/miniprogram/dev/api/getRecorderManager.html) 接口**
+   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.getRecorderManager](https://developers.weixin.qq.com/miniprogram/dev/api/media/recorder/wx.getRecorderManager.html) 接口**
    *
    * 开始录音。当主动调用`Taro.stopRecord`，或者录音超过1分钟时自动结束录音，返回录音文件的临时文件路径。当用户离开小程序时，此接口无法调用。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.record
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-record.html#wxstartrecordobject
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.record
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/recorder/wx.startRecord.html
    */
   function startRecord(OBJECT?: startRecord.Param): Promise<startRecord.Promised>
 
@@ -1482,21 +2090,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startRecord({
-   *       success: function(res) {
-   *         var tempFilePath = res.tempFilePath
-   *       },
-   *       fail: function(res) {
-   *          //录音失败
-   *       }
-   *     })
-   *     setTimeout(function() {
-   *       //结束录音
-   *       Taro.stopRecord()
-   *     }, 10000)
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-record.html#wxstoprecord
+   ```javascript
+   Taro.startRecord({
+     success: function(res) {
+       var tempFilePath = res.tempFilePath
+     },
+     fail: function(res) {
+        //录音失败
+     }
+   })
+   setTimeout(function() {
+     //结束录音
+     Taro.stopRecord()
+   }, 10000)
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/recorder/wx.stopRecord.html
    */
   function stopRecord(): void
 
@@ -1521,36 +2129,33 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const recorderManager = Taro.getRecorderManager()
-   *
-   *     recorderManager.onStart(() => {
-   *       console.log('recorder start')
-   *     })
-   *     recorderManager.onPause(() => {
-   *       console.log('recorder pause')
-   *     })
-   *     recorderManager.onStop((res) => {
-   *       console.log('recorder stop', res)
-   *       const { tempFilePath } = res
-   *     })
-   *     recorderManager.onFrameRecorded((res) => {
-   *       const { frameBuffer } = res
-   *       console.log('frameBuffer.byteLength', frameBuffer.byteLength)
-   *     })
-   *
-   *     const options = {
-   *       duration: 10000,
-   *       sampleRate: 44100,
-   *       numberOfChannels: 1,
-   *       encodeBitRate: 192000,
-   *       format: 'aac',
-   *       frameSize: 50
-   *     }
-   *
-   *     recorderManager.start(options)
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/getRecorderManager.html#wxgetrecordermanager
+   ```javascript
+   const recorderManager = Taro.getRecorderManager()
+         recorderManager.onStart(() => {
+     console.log('recorder start')
+   })
+   recorderManager.onPause(() => {
+     console.log('recorder pause')
+   })
+   recorderManager.onStop((res) => {
+     console.log('recorder stop', res)
+     const { tempFilePath } = res
+   })
+   recorderManager.onFrameRecorded((res) => {
+     const { frameBuffer } = res
+     console.log('frameBuffer.byteLength', frameBuffer.byteLength)
+   })
+         const options = {
+     duration: 10000,
+     sampleRate: 44100,
+     numberOfChannels: 1,
+     encodeBitRate: 192000,
+     format: 'aac',
+     frameSize: 50
+   }
+         recorderManager.start(options)
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/recorder/wx.getRecorderManager.html
    */
   function getRecorderManager(): RecorderManager
 
@@ -1665,77 +2270,217 @@ declare namespace Taro {
        * @since 1.6.0
        */
       duration?: number
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
-   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.createInnerAudioContext](https://developers.weixin.qq.com/miniprogram/dev/api/createInnerAudioContext.html) 接口**
+   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.createInnerAudioContext](https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.createInnerAudioContext.html) 接口**
    *
    * 开始播放语音，同时只允许一个语音文件正在播放，如果前一个语音文件还没播放完，将中断前一个语音播放。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startRecord({
-   *       success: function(res) {
-   *         var tempFilePath = res.tempFilePath
-   *         Taro.playVoice({
-   *           filePath: tempFilePath,
-   *           complete: function(){
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-voice.html#wxplayvoiceobject
+   ```javascript
+   Taro.startRecord({
+     success: function(res) {
+       var tempFilePath = res.tempFilePath
+       Taro.playVoice({
+         filePath: tempFilePath,
+         complete: function(){
+         }
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.playVoice.html
    */
   function playVoice(OBJECT: playVoice.Param): Promise<any>
 
   /**
+   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.createInnerAudioContext](https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.createInnerAudioContext.html) 接口**
    * 暂停正在播放的语音。再次调用Taro.playVoice播放同一个文件时，会从暂停处开始播放。如果想从头开始播放，需要先调用 Taro.stopVoice。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startRecord({
-   *       success: function(res) {
-   *         var tempFilePath = res.tempFilePath
-   *           Taro.playVoice({
-   *           filePath: tempFilePath
-   *         })
-   *
-   *         setTimeout(function() {
-   *             //暂停播放
-   *           Taro.pauseVoice()
-   *         }, 5000)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-voice.html#wxpausevoice
+   ```javascript
+   Taro.startRecord({
+     success: function(res) {
+       var tempFilePath = res.tempFilePath
+         Taro.playVoice({
+         filePath: tempFilePath
+       })
+             setTimeout(function() {
+           //暂停播放
+         Taro.pauseVoice()
+       }, 5000)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.pauseVoice.html
    */
   function pauseVoice(): void
 
   /**
+   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.createInnerAudioContext](https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.createInnerAudioContext.html) 接口**
    * 结束播放语音。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startRecord({
-   *       success: function(res) {
-   *         var tempFilePath = res.tempFilePath
-   *         Taro.playVoice({
-   *           filePath:tempFilePath
-   *         })
-   *
-   *         setTimeout(function(){
-   *           Taro.stopVoice()
-   *         }, 5000)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-voice.html#wxstopvoice
+   ```javascript
+   Taro.startRecord({
+     success: function(res) {
+       var tempFilePath = res.tempFilePath
+       Taro.playVoice({
+         filePath:tempFilePath
+       })
+             setTimeout(function(){
+         Taro.stopVoice()
+       }, 5000)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.stopVoice.html
    */
   function stopVoice(): void
+
+  namespace setInnerAudioOption {
+    type Param = {
+      /**
+       * 是否与其他音频混播，设置为 true 之后，不会终止其他应用或微信内的音乐
+       */
+      mixWithOther?: boolean
+      /**
+       * （仅在 iOS 生效）是否遵循静音开关，设置为 false 之后，即使是在静音模式下，也能播放声音
+       */
+      obeyMuteSwitch?: boolean
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
+    }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
+  }
+  /**
+   * @since 2.3.0
+   *
+   * 设置 InnerAudioContext 的播放选项。设置之后对当前小程序全局生效。
+   *
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.setInnerAudioOption.html
+   */
+  function setInnerAudioOption(OBJECT: setInnerAudioOption.Param): Promise<any>
+
+  const enum audioSourcesTypes {
+    /**
+     * 自动设置，默认使用手机麦克风，插上耳麦后自动切换使用耳机麦克风，所有平台适用
+     */
+    auto = 'auto',
+    /**
+     * 手机麦克风，仅限 iOS
+     */
+    buildInMic = 'buildInMic',
+    /**
+     * 耳机麦克风，仅限 iOS
+     */
+    headsetMic = 'headsetMic',
+    /**
+     * 麦克风（没插耳麦时是手机麦克风，插耳麦时是耳机麦克风），仅限 Android
+     */
+    mic = 'mic',
+    /**
+     * 同 mic，适用于录制音视频内容，仅限 Android
+     */
+    camcorder = 'camcorder',
+    /**
+     * 同 mic，适用于实时沟通，仅限 Android
+     */
+    voice_communication = 'voice_communication',
+    /**
+     * 同 mic，适用于语音识别，仅限 Android
+     */
+    voice_recognition = 'voice_recognition'
+  }
+
+  namespace getAvailableAudioSources {
+    type Param = {
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
+    }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: Result) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
+
+    type Result = {
+      /**
+       * 支持的音频输入源列表，可在 RecorderManager.start() 接口中使用。返回值定义参考 https://developer.android.com/reference/kotlin/android/media/MediaRecorder.AudioSourc
+       */
+      audioSources: audioSourcesTypes[]
+    }
+  }
+  /**
+   * @since 2.1.0
+   * 获取当前支持的音频输入源。
+   *
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.getAvailableAudioSources.html
+   */
+  function getAvailableAudioSources(OBJECT: getAvailableAudioSources.Param): Promise<any>
 
   namespace getBackgroundAudioPlayerState {
     type Promised = {
@@ -1763,24 +2508,24 @@ declare namespace Taro {
     type Param = {}
   }
   /**
-   * **注意：1.2.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.getBackgroundAudioManager](https://developers.weixin.qq.com/miniprogram/dev/api/getBackgroundAudioManager.html) 接口**
+   * **注意：1.2.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.getBackgroundAudioManager](https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.getBackgroundAudioManager.html) 接口**
    *
    * 获取后台音乐播放状态。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getBackgroundAudioPlayerState({
-   *         success: function(res) {
-   *             var status = res.status
-   *             var dataUrl = res.dataUrl
-   *             var currentPosition = res.currentPosition
-   *             var duration = res.duration
-   *             var downloadPercent = res.downloadPercent
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxgetbackgroundaudioplayerstateobject
+   ```javascript
+   Taro.getBackgroundAudioPlayerState({
+       success: function(res) {
+           var status = res.status
+           var dataUrl = res.dataUrl
+           var currentPosition = res.currentPosition
+           var duration = res.duration
+           var downloadPercent = res.downloadPercent
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.getBackgroundAudioPlayerState.html
    */
   function getBackgroundAudioPlayerState(OBJECT?: getBackgroundAudioPlayerState.Param): Promise<getBackgroundAudioPlayerState.Promised>
 
@@ -1805,14 +2550,14 @@ declare namespace Taro {
    *
    * **OBJECT参数说明：**
    *
-   *     ```javascript
-   *     Taro.playBackgroundAudio({
-   *         dataUrl: '',
-   *         title: '',
-   *         coverImgUrl: ''
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxplaybackgroundaudioobject
+   ```javascript
+   Taro.playBackgroundAudio({
+       dataUrl: '',
+       title: '',
+       coverImgUrl: ''
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.playBackgroundAudio.html
    */
   function playBackgroundAudio(OBJECT: playBackgroundAudio.Param): Promise<any>
 
@@ -1823,10 +2568,10 @@ declare namespace Taro {
    *
    * **示例：**
    *
-   *     ```javascript
-   *     Taro.pauseBackgroundAudio()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxpausebackgroundaudio
+   ```javascript
+   Taro.pauseBackgroundAudio()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.pauseBackgroundAudio.html
    */
   function pauseBackgroundAudio(): void
 
@@ -1843,12 +2588,12 @@ declare namespace Taro {
    *
    * **OBJECT参数说明：**
    *
-   *     ```javascript
-   *     Taro.seekBackgroundAudio({
-   *         position: 30
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxseekbackgroundaudioobject
+   ```javascript
+   Taro.seekBackgroundAudio({
+       position: 30
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.seekBackgroundAudio.html
    */
   function seekBackgroundAudio(OBJECT: seekBackgroundAudio.Param): Promise<any>
 
@@ -1859,22 +2604,22 @@ declare namespace Taro {
    *
    * **示例：**
    *
-   *     ```javascript
-   *     Taro.stopBackgroundAudio()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxstopbackgroundaudio
+   ```javascript
+   Taro.stopBackgroundAudio()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.stopBackgroundAudio.html
    */
   function stopBackgroundAudio(): void
 
   /**
    * 监听音乐播放。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxonbackgroundaudioplaycallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.onBackgroundAudioPlay.html
    */
   function onBackgroundAudioPlay(CALLBACK: any): void
 
   /**
    * 监听音乐暂停。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxonbackgroundaudiopausecallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.onBackgroundAudioPause.html
    */
   function onBackgroundAudioPause(CALLBACK: any): void
 
@@ -1884,7 +2629,7 @@ declare namespace Taro {
    * **bug & tip：**
    *
    * 1.  `bug`: `iOS` `6.3.30` Taro.seekBackgroundAudio 会有短暂延迟
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-background-audio.html#wxonbackgroundaudiostopcallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.onBackgroundAudioStop.html
    */
   function onBackgroundAudioStop(CALLBACK: any): void
 
@@ -1905,16 +2650,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const backgroundAudioManager = Taro.getBackgroundAudioManager()
-   *
-   *     backgroundAudioManager.title = '此时此刻'
-   *     backgroundAudioManager.epname = '此时此刻'
-   *     backgroundAudioManager.singer = '许巍'
-   *     backgroundAudioManager.coverImgUrl = 'http://y.gtimg.cn/music/photo_new/T002R300x300M000003rsKF44GyaSk.jpg?max_age=2592000'
-   *     backgroundAudioManager.src = 'http://ws.stream.qqmusic.qq.com/M500001VfvsJ21xFqb.mp3?guid=ffffffff82def4af4b12b3cd9337d5e7&uin=346897220&vkey=6292F51E1E384E061FF02C31F716658E5C81F5594D561F2E88B854E81CAAB7806D5E4F103E55D33C16F3FAC506D1AB172DE8600B37E43FAD&fromtag=46' // 设置了 src 之后会自动播放
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/getBackgroundAudioManager.html#wxgetbackgroundaudiomanager
+   ```javascript
+   const backgroundAudioManager = Taro.getBackgroundAudioManager()
+         backgroundAudioManager.title = '此时此刻'
+   backgroundAudioManager.epname = '此时此刻'
+   backgroundAudioManager.singer = '许巍'
+   backgroundAudioManager.coverImgUrl = 'http://y.gtimg.cn/music/photo_new/T002R300x300M000003rsKF44GyaSk.jpg?max_age=2592000'
+   backgroundAudioManager.src = 'http://ws.stream.qqmusic.qq.com/M500001VfvsJ21xFqb.mp3?guid=ffffffff82def4af4b12b3cd9337d5e7&uin=346897220&vkey=6292F51E1E384E061FF02C31F716658E5C81F5594D561F2E88B854E81CAAB7806D5E4F103E55D33C16F3FAC506D1AB172DE8600B37E43FAD&fromtag=46' // 设置了 src 之后会自动播放
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/background-audio/wx.getBackgroundAudioManager.html
    */
   function getBackgroundAudioManager(): BackgroundAudioManager
 
@@ -2035,7 +2779,7 @@ declare namespace Taro {
     onWaiting(callback?: () => void): void
   }
   /**
-   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.createInnerAudioContext](https://developers.weixin.qq.com/miniprogram/dev/api/createInnerAudioContext.html) 接口**
+   * **注意：1.6.0 版本开始，本接口不再维护。建议使用能力更强的 [Taro.createInnerAudioContext](https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.createInnerAudioContext.html) 接口**
    *
    * 创建并返回 audio 上下文 `audioContext` 对象。在自定义组件下，第二个参数传入组件实例this，以操作组件内 `<audio/>` 组件
    *
@@ -2045,45 +2789,44 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```html
-   *     <!-- audio.wxml -->
-   *     <audio  src="{{src}}" id="myAudio" ></audio>
-   *
-   *     <button type="primary" bindtap="audioPlay">播放</button>
-   *     <button type="primary" bindtap="audioPause">暂停</button>
-   *     <button type="primary" bindtap="audio14">设置当前播放时间为14秒</button>
-   *     <button type="primary" bindtap="audioStart">回到开头</button>
-   *     ```
+   ```html
+   <!-- audio.wxml -->
+   <audio  src="{{src}}" id="myAudio" ></audio>
+         <button type="primary" bindtap="audioPlay">播放</button>
+   <button type="primary" bindtap="audioPause">暂停</button>
+   <button type="primary" bindtap="audio14">设置当前播放时间为14秒</button>
+   <button type="primary" bindtap="audioStart">回到开头</button>
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // audio.js
-   *     Page({
-   *       onReady: function (e) {
-   *         // 使用 Taro.createAudioContext 获取 audio 上下文 context
-   *         this.audioCtx = Taro.createAudioContext('myAudio')
-   *         this.audioCtx.setSrc('http://ws.stream.qqmusic.qq.com/M500001VfvsJ21xFqb.mp3?guid=ffffffff82def4af4b12b3cd9337d5e7&uin=346897220&vkey=6292F51E1E384E06DCBDC9AB7C49FD713D632D313AC4858BACB8DDD29067D3C601481D36E62053BF8DFEAF74C0A5CCFADD6471160CAF3E6A&fromtag=46')
-   *         this.audioCtx.play()
-   *       },
-   *       data: {
-   *         src: ''
-   *       },
-   *       audioPlay: function () {
-   *         this.audioCtx.play()
-   *       },
-   *       audioPause: function () {
-   *         this.audioCtx.pause()
-   *       },
-   *       audio14: function () {
-   *         this.audioCtx.seek(14)
-   *       },
-   *       audioStart: function () {
-   *         this.audioCtx.seek(0)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-audio.html#wxcreateaudiocontextaudioid-this
+   ```javascript
+   // audio.js
+   Page({
+     onReady: function (e) {
+       // 使用 Taro.createAudioContext 获取 audio 上下文 context
+       this.audioCtx = Taro.createAudioContext('myAudio')
+       this.audioCtx.setSrc('http://ws.stream.qqmusic.qq.com/M500001VfvsJ21xFqb.mp3?guid=ffffffff82def4af4b12b3cd9337d5e7&uin=346897220&vkey=6292F51E1E384E06DCBDC9AB7C49FD713D632D313AC4858BACB8DDD29067D3C601481D36E62053BF8DFEAF74C0A5CCFADD6471160CAF3E6A&fromtag=46')
+       this.audioCtx.play()
+     },
+     data: {
+       src: ''
+     },
+     audioPlay: function () {
+       this.audioCtx.play()
+     },
+     audioPause: function () {
+       this.audioCtx.pause()
+     },
+     audio14: function () {
+       this.audioCtx.seek(14)
+     },
+     audioStart: function () {
+       this.audioCtx.seek(0)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.createAudioContext.html
    */
   function createAudioContext(audioId: string, instance?: any): AudioContext
 
@@ -2122,19 +2865,19 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const innerAudioContext = Taro.createInnerAudioContext()
-   *     innerAudioContext.autoplay = true
-   *     innerAudioContext.src = 'http://ws.stream.qqmusic.qq.com/M500001VfvsJ21xFqb.mp3?guid=ffffffff82def4af4b12b3cd9337d5e7&uin=346897220&vkey=6292F51E1E384E061FF02C31F716658E5C81F5594D561F2E88B854E81CAAB7806D5E4F103E55D33C16F3FAC506D1AB172DE8600B37E43FAD&fromtag=46'
-   *     innerAudioContext.onPlay(() => {
-   *         console.log('开始播放')
-   *     })
-   *     innerAudioContext.onError((res) => {
-   *         console.log(res.errMsg)
-   *         console.log(res.errCode)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/createInnerAudioContext.html#wxcreateinneraudiocontext
+   ```javascript
+   const innerAudioContext = Taro.createInnerAudioContext()
+   innerAudioContext.autoplay = true
+   innerAudioContext.src = 'http://ws.stream.qqmusic.qq.com/M500001VfvsJ21xFqb.mp3?guid=ffffffff82def4af4b12b3cd9337d5e7&uin=346897220&vkey=6292F51E1E384E061FF02C31F716658E5C81F5594D561F2E88B854E81CAAB7806D5E4F103E55D33C16F3FAC506D1AB172DE8600B37E43FAD&fromtag=46'
+   innerAudioContext.onPlay(() => {
+       console.log('开始播放')
+   })
+   innerAudioContext.onError((res) => {
+       console.log(res.errMsg)
+       console.log(res.errCode)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/audio/wx.createInnerAudioContext.html
    */
   function createInnerAudioContext(): InnerAudioContext
 
@@ -2355,33 +3098,33 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```html
-   *     <view class="container">
-   *         <video src="{{src}}"></video>
-   *         <button bindtap="bindButtonTap">获取视频</button>
-   *     </view>
-   *     ```
+   ```html
+   <view class="container">
+       <video src="{{src}}"></video>
+       <button bindtap="bindButtonTap">获取视频</button>
+   </view>
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Page({
-   *         bindButtonTap: function() {
-   *             var that = this
-   *             Taro.chooseVideo({
-   *                 sourceType: ['album','camera'],
-   *                 maxDuration: 60,
-   *           camera: 'back',
-   *                 success: function(res) {
-   *                     that.setData({
-   *                         src: res.tempFilePath
-   *                     })
-   *                 }
-   *             })
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-video.html#wxchoosevideoobject
+   ```javascript
+   Page({
+       bindButtonTap: function() {
+           var that = this
+           Taro.chooseVideo({
+               sourceType: ['album','camera'],
+               maxDuration: 60,
+         camera: 'back',
+               success: function(res) {
+                   that.setData({
+                       src: res.tempFilePath
+                   })
+               }
+           })
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/video/wx.chooseVideo.html
    */
   function chooseVideo(OBJECT?: chooseVideo.Param): Promise<chooseVideo.Promised>
 
@@ -2402,7 +3145,7 @@ declare namespace Taro {
   /**
    * @since 1.2.0
    *
-   * 保存视频到系统相册。需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.writePhotosAlbum
+   * 保存视频到系统相册。需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.writePhotosAlbum
    *
    * **Bug & Tip：**
    *
@@ -2410,15 +3153,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.saveVideoToPhotosAlbum({
-   *       filePath: 'wxfile://xxx'
-   *       success(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media-video.html#wxsavevideotophotosalbumobject
+   ```javascript
+   Taro.saveVideoToPhotosAlbum({
+     filePath: 'wxfile://xxx'
+     success(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/video/wx.saveVideoToPhotosAlbum.html
    */
   function saveVideoToPhotosAlbum(OBJECT: saveVideoToPhotosAlbum.Param): Promise<saveVideoToPhotosAlbum.Promised>
 
@@ -2431,46 +3174,45 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```html
-   *     <view class="section tc">
-   *       <video id="myVideo" src="http://wxsnsdy.tc.qq.com/105/20210/snsdyvideodownload?filekey=30280201010421301f0201690402534804102ca905ce620b1241b726bc41dcff44e00204012882540400&bizid=1023&hy=SH&fileparam=302c020101042530230204136ffd93020457e3c4ff02024ef202031e8d7f02030f42400204045a320a0201000400"   enable-danmu danmu-btn controls></video>
-   *       <view class="btn-area">
-   *         <input bindblur="bindInputBlur"/>
-   *         <button bindtap="bindSendDanmu">发送弹幕</button>
-   *       </view>
-   *     </view>
-   *     ```
+   ```html
+   <view class="section tc">
+     <video id="myVideo" src="http://wxsnsdy.tc.qq.com/105/20210/snsdyvideodownload?filekey=30280201010421301f0201690402534804102ca905ce620b1241b726bc41dcff44e00204012882540400&bizid=1023&hy=SH&fileparam=302c020101042530230204136ffd93020457e3c4ff02024ef202031e8d7f02030f42400204045a320a0201000400"   enable-danmu danmu-btn controls></video>
+     <view class="btn-area">
+       <input bindblur="bindInputBlur"/>
+       <button bindtap="bindSendDanmu">发送弹幕</button>
+     </view>
+   </view>
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     function getRandomColor () {
-   *       let rgb = []
-   *       for (let i = 0 ; i < 3; ++i){
-   *         let color = Math.floor(Math.random() * 256).toString(16)
-   *         color = color.length == 1 ? '0' + color : color
-   *         rgb.push(color)
-   *       }
-   *       return '#' + rgb.join('')
-   *     }
-   *
-   *     Page({
-   *       onReady: function (res) {
-   *         this.videoContext = Taro.createVideoContext('myVideo')
-   *       },
-   *       inputValue: '',
-   *       bindInputBlur: function(e) {
-   *         this.inputValue = e.detail.value
-   *       },
-   *       bindSendDanmu: function () {
-   *         this.videoContext.sendDanmu({
-   *           text: this.inputValue,
-   *           color: getRandomColor()
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-video.html#wxcreatevideocontextvideoid-this
+   ```javascript
+   function getRandomColor () {
+     let rgb = []
+     for (let i = 0 ; i < 3; ++i){
+       let color = Math.floor(Math.random()   256).toString(16)
+       color = color.length == 1 ? '0' + color : color
+       rgb.push(color)
+     }
+     return '#' + rgb.join('')
+   }
+         Page({
+     onReady: function (res) {
+       this.videoContext = Taro.createVideoContext('myVideo')
+     },
+     inputValue: '',
+     bindInputBlur: function(e) {
+       this.inputValue = e.detail.value
+     },
+     bindSendDanmu: function () {
+       this.videoContext.sendDanmu({
+         text: this.inputValue,
+         color: getRandomColor()
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/video/wx.createVideoContext.html
    */
   function createVideoContext(videoId: any, instance?: any): VideoContext
 
@@ -2484,13 +3226,19 @@ declare namespace Taro {
      */
     pause(): void
     /**
+     * 停止
+     *
+     * @since 1.7.0
+     */
+    stop(): void
+    /**
      * 跳转到指定位置，单位 s
      */
     seek(position: number): void
     /**
      * 发送弹幕，danmu 包含两个属性 text, color。
      */
-    sendDanmu(danmu: { text: string, color: string }): void
+    sendDanmu(danmu: { text: string; color: string }): void
     /**
      * 设置倍速播放，支持的倍率有 0.5/0.8/1.0/1.25/1.5
      *
@@ -2502,13 +3250,25 @@ declare namespace Taro {
      *
      * @since 1.4.0
      */
-    requestFullScreen(): void
+    requestFullScreen(param: { direction: 0 | 90 | -90 }): void
     /**
      * 退出全屏
      *
      * @since 1.4.0
      */
     exitFullScreen(): void
+    /**
+     * 显示状态栏，仅在iOS全屏下有效
+     *
+     * @since 2.1.0
+     */
+    showStatusBar(): void
+    /**
+     * 隐藏状态栏，仅在iOS全屏下有效
+     *
+     * @since 2.1.0
+     */
+    hideStatusBar(): void
   }
   /**
    * @since 1.6.0
@@ -2518,11 +3278,41 @@ declare namespace Taro {
    * **示例代码：**
    *
    * [在开发者工具中预览效果](wechatide://minicode/VBZ3Jim26zYu)
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-camera.html#wxcreatecameracontextthis
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/camera/wx.createCameraContext.html
    */
   function createCameraContext(instance?: any): CameraContext
 
   namespace CameraContext {
+    namespace onCameraFrame {
+      type CallbackParam = {
+        /**
+         * 图像数据矩形的宽度
+         */
+        width: number
+        /**
+         * 图像数据矩形的高度
+         */
+        height: number
+        /**
+         * 图像像素点数据，一维数组，每四项表示一个像素点的 rgba
+         */
+        data: ArrayBuffer
+      }
+      type Callback = (res: CallbackParam) => any
+      /**
+       * CameraContext.onCameraFrame() 返回的监听器。
+       */
+      class CameraFrameListener {
+        /**
+         * 开始监听帧数据
+         */
+        start(): any
+        /**
+         * 停止监听帧数据
+         */
+        stop(): any
+      }
+    }
     namespace takePhoto {
       type Param = {
         /**
@@ -2577,7 +3367,7 @@ declare namespace Taro {
       /**
        * 接口调用成功的回调函数
        */
-      type ParamPropSuccess = (res: { tempThumbPath: string, tempVideoPath: string }) => any
+      type ParamPropSuccess = (res: { tempThumbPath: string; tempVideoPath: string }) => any
       /**
        * 接口调用失败的回调函数
        */
@@ -2589,7 +3379,7 @@ declare namespace Taro {
       /**
        * 超过30s或页面onHide时会结束录像，res = { tempThumbPath, tempVideoPath }
        */
-      type ParamPropTimeoutCallback = (res: { tempThumbPath: string, tempVideoPath: string }) => void
+      type ParamPropTimeoutCallback = (res: { tempThumbPath: string; tempVideoPath: string }) => void
     }
     namespace stopRecord {
       type Param = {
@@ -2609,7 +3399,7 @@ declare namespace Taro {
       /**
        * 接口调用成功的回调函数 ，res = { tempThumbPath, tempVideoPath }
        */
-      type ParamPropSuccess = (res: { tempThumbPath: string, tempVideoPath: string }) => any
+      type ParamPropSuccess = (res: { tempThumbPath: string; tempVideoPath: string }) => any
       /**
        * 接口调用失败的回调函数
        */
@@ -2621,6 +3411,11 @@ declare namespace Taro {
     }
   }
   class CameraContext {
+    /**
+     * @since 2.7.0
+     * 获取 Camera 实时帧数据
+     */
+    onCameraFrame(callback: CameraContext.onCameraFrame.Callback): CameraContext.onCameraFrame.CameraFrameListener
     /**
      * 拍照，可指定质量，成功则返回图片
      */
@@ -2642,7 +3437,7 @@ declare namespace Taro {
    * **示例代码：**
    *
    * [在开发者工具中预览效果](wechatide://minicode/UzWEzmm763Y4)
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-live-player.html#wxcreateliveplayercontextdomid-this
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/live/wx.createLivePlayerContext.html
    */
   function createLivePlayerContext(domId: any, instance?: any): LivePlayerContext
 
@@ -2890,7 +3685,7 @@ declare namespace Taro {
    * **示例代码：**
    *
    * [在开发者工具中预览效果](wechatide://minicode/KvWD9mmA62Yk)
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-live-pusher.html#wxcreatelivepushercontext
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/live/wx.createLivePusherContext.html
    */
   function createLivePusherContext(): LivePusherContext
 
@@ -3115,20 +3910,20 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.chooseImage({
-   *       success: function(res) {
-   *         var tempFilePaths = res.tempFilePaths
-   *         Taro.saveFile({
-   *           tempFilePath: tempFilePaths[0],
-   *           success: function(res) {
-   *             var savedFilePath = res.savedFilePath
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file.html#wxsavefileobject
+   ```javascript
+   Taro.chooseImage({
+     success: function(res) {
+       var tempFilePaths = res.tempFilePaths
+       Taro.saveFile({
+         tempFilePath: tempFilePaths[0],
+         success: function(res) {
+           var savedFilePath = res.savedFilePath
+         }
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.saveFile.html
    */
   function saveFile(OBJECT: saveFile.Param): Promise<saveFile.Promised>
 
@@ -3168,14 +3963,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getSavedFileList({
-   *       success: function(res) {
-   *         console.log(res.fileList)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file.html#wxgetsavedfilelistobject
+   ```javascript
+   Taro.getSavedFileList({
+     success: function(res) {
+       console.log(res.fileList)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.getSavedFileList.html
    */
   function getSavedFileList(OBJECT?: getSavedFileList.Param): Promise<getSavedFileList.Promised>
 
@@ -3202,20 +3997,20 @@ declare namespace Taro {
     }
   }
   /**
-   * 获取本地文件的文件信息。此接口只能用于获取已保存到本地的文件，若需要获取临时文件信息，请使用 [Taro.getFileInfo](https://developers.weixin.qq.com/miniprogram/dev/api/getFileInfo.html) 接口。
+   * 获取本地文件的文件信息。此接口只能用于获取已保存到本地的文件，若需要获取临时文件信息，请使用 [Taro.getFileInfo](https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.getFileInfo.html) 接口。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getSavedFileInfo({
-   *       filePath: 'wxfile://somefile', //仅做示例用，非真正的文件路径
-   *       success: function(res) {
-   *         console.log(res.size)
-   *         console.log(res.createTime)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file.html#wxgetsavedfileinfoobject
+   ```javascript
+   Taro.getSavedFileInfo({
+     filePath: 'wxfile://somefile', //仅做示例用，非真正的文件路径
+     success: function(res) {
+       console.log(res.size)
+       console.log(res.createTime)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.getSavedFileInfo.html
    */
   function getSavedFileInfo(OBJECT: getSavedFileInfo.Param): Promise<getSavedFileInfo.Promised>
 
@@ -3232,21 +4027,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getSavedFileList({
-   *       success: function(res) {
-   *         if (res.fileList.length > 0){
-   *           Taro.removeSavedFile({
-   *             filePath: res.fileList[0].filePath,
-   *             complete: function(res) {
-   *               console.log(res)
-   *             }
-   *           })
-   *         }
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file.html#wxremovesavedfileobject
+   ```javascript
+   Taro.getSavedFileList({
+     success: function(res) {
+       if (res.fileList.length > 0){
+         Taro.removeSavedFile({
+           filePath: res.fileList[0].filePath,
+           complete: function(res) {
+             console.log(res)
+           }
+         })
+       }
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.removeSavedFile.html
    */
   function removeSavedFile(OBJECT: removeSavedFile.Param): Promise<any>
 
@@ -3269,21 +4064,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.downloadFile({
-   *       url: 'http://example.com/somefile.pdf',
-   *       success: function (res) {
-   *         var filePath = res.tempFilePath
-   *         Taro.openDocument({
-   *           filePath: filePath,
-   *           success: function (res) {
-   *             console.log('打开文档成功')
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file.html#wxopendocumentobject
+   ```javascript
+   Taro.downloadFile({
+     url: 'http://example.com/somefile.pdf',
+     success: function (res) {
+       var filePath = res.tempFilePath
+       Taro.openDocument({
+         filePath: filePath,
+         success: function (res) {
+           console.log('打开文档成功')
+         }
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.openDocument.html
    */
   function openDocument(OBJECT: openDocument.Param): Promise<any>
 
@@ -3320,15 +4115,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getFileInfo({
-   *         success(res) {
-   *             console.log(res.size)
-   *             console.log(res.digest)
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/getFileInfo.html#wxgetfileinfoobject
+   ```javascript
+   Taro.getFileInfo({
+       success(res) {
+           console.log(res.size)
+           console.log(res.digest)
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.getFileInfo.html
    */
   function getFileInfo(OBJECT: getFileInfo.Param): Promise<getFileInfo.Promised>
 
@@ -3349,13 +4144,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setStorage({
-   *       key:"key",
-   *       data:"value"
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxsetstorageobject
+   ```javascript
+   Taro.setStorage({
+     key:"key",
+     data:"value"
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.setStorage.html
    */
   function setStorage(OBJECT: setStorage.Param): Promise<any>
 
@@ -3364,13 +4159,13 @@ declare namespace Taro {
    *
    * **参数说明：**
    *
-   *     ```javascript
-   *     try {
-   *         Taro.setStorageSync('key', 'value')
-   *     } catch (e) {
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxsetstoragesynckeydata
+   ```javascript
+   try {
+       Taro.setStorageSync('key', 'value')
+   } catch (e) {
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.setStorageSync.html
    */
   function setStorageSync(key: string, data: any | string): void
 
@@ -3393,15 +4188,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getStorage({
-   *       key: 'key',
-   *       success: function(res) {
-   *           console.log(res.data)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxgetstorageobject
+   ```javascript
+   Taro.getStorage({
+     key: 'key',
+     success: function(res) {
+         console.log(res.data)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.getStorage.html
    */
   function getStorage(OBJECT: getStorage.Param): Promise<getStorage.Promised>
 
@@ -3410,17 +4205,17 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     try {
-   *       var value = Taro.getStorageSync('key')
-   *       if (value) {
-   *           // Do something with return value
-   *       }
-   *     } catch (e) {
-   *       // Do something when catch error
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxgetstoragesynckey
+   ```javascript
+   try {
+     var value = Taro.getStorageSync('key')
+     if (value) {
+         // Do something with return value
+     }
+   } catch (e) {
+     // Do something when catch error
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.getStorageSync.html
    */
   function getStorageSync(key: string): any | undefined
 
@@ -3446,16 +4241,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getStorageInfo({
-   *       success: function(res) {
-   *         console.log(res.keys)
-   *         console.log(res.currentSize)
-   *         console.log(res.limitSize)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxgetstorageinfoobject
+   ```javascript
+   Taro.getStorageInfo({
+     success: function(res) {
+       console.log(res.keys)
+       console.log(res.currentSize)
+       console.log(res.limitSize)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.getStorageInfo.html
    */
   function getStorageInfo(OBJECT?: getStorageInfo.Param): Promise<getStorageInfo.Promised>
 
@@ -3480,17 +4275,17 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     try {
-   *       var res = Taro.getStorageInfoSync()
-   *       console.log(res.keys)
-   *       console.log(res.currentSize)
-   *       console.log(res.limitSize)
-   *     } catch (e) {
-   *       // Do something when catch error
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxgetstorageinfosync
+   ```javascript
+   try {
+     var res = Taro.getStorageInfoSync()
+     console.log(res.keys)
+     console.log(res.currentSize)
+     console.log(res.limitSize)
+   } catch (e) {
+     // Do something when catch error
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.getStorageInfoSync.html
    */
   function getStorageInfoSync(): getStorageInfoSync.Return
 
@@ -3507,15 +4302,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.removeStorage({
-   *       key: 'key',
-   *       success: function(res) {
-   *         console.log(res.data)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxremovestorageobject
+   ```javascript
+   Taro.removeStorage({
+     key: 'key',
+     success: function(res) {
+       console.log(res.data)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.removeStorage.html
    */
   function removeStorage(OBJECT: removeStorage.Param): Promise<any>
 
@@ -3524,14 +4319,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     try {
-   *       Taro.removeStorageSync('key')
-   *     } catch (e) {
-   *       // Do something when catch error
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxremovestoragesynckey
+   ```javascript
+   try {
+     Taro.removeStorageSync('key')
+   } catch (e) {
+     // Do something when catch error
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.removeStorageSync.html
    */
   function removeStorageSync(key: string): void
 
@@ -3540,10 +4335,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.clearStorage()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxclearstorage
+   ```javascript
+   Taro.clearStorage()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.clearStorage.html
    */
   function clearStorage(): void
 
@@ -3556,14 +4351,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     try {
-   *         Taro.clearStorageSync()
-   *     } catch(e) {
-   *       // Do something when catch error
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/data.html#wxclearstoragesync
+   ```javascript
+   try {
+       Taro.clearStorageSync()
+   } catch(e) {
+     // Do something when catch error
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.clearStorageSync.html
    */
   function clearStorageSync(): void
 
@@ -3615,25 +4410,49 @@ declare namespace Taro {
        * @since 1.6.0
        */
       altitude?: boolean
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 获取当前的地理位置、速度。当用户离开小程序后，此接口无法调用；当用户点击“显示在聊天顶部”时，此接口可继续调用。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getLocation({
-   *       type: 'wgs84',
-   *       success: function(res) {
-   *         var latitude = res.latitude
-   *         var longitude = res.longitude
-   *         var speed = res.speed
-   *         var accuracy = res.accuracy
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/location.html#wxgetlocationobject
+   ```javascript
+   Taro.getLocation({
+     type: 'wgs84',
+     success: function(res) {
+       var latitude = res.latitude
+       var longitude = res.longitude
+       var speed = res.speed
+       var accuracy = res.accuracy
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/location/wx.getLocation.html
    */
   function getLocation(OBJECT?: getLocation.Param): Promise<getLocation.Promised>
 
@@ -3661,8 +4480,8 @@ declare namespace Taro {
   /**
    * 打开地图选择位置。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.userLocation
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/location.html#wxchooselocationobject
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.userLocation
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/location/wx.chooseLocation.html
    */
   function chooseLocation(OBJECT?: chooseLocation.Param): Promise<chooseLocation.Promised>
 
@@ -3693,7 +4512,7 @@ declare namespace Taro {
   /**
    * ​使用微信内置地图查看位置。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.userLocation
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.userLocation
    *
    * **Bug & Tip：**
    *
@@ -3701,21 +4520,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getLocation({
-   *       type: 'gcj02', //返回可以用于Taro.openLocation的经纬度
-   *       success: function(res) {
-   *         var latitude = res.latitude
-   *         var longitude = res.longitude
-   *         Taro.openLocation({
-   *           latitude: latitude,
-   *           longitude: longitude,
-   *           scale: 28
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/location.html#wxopenlocationobject
+   ```javascript
+   Taro.getLocation({
+     type: 'gcj02', //返回可以用于Taro.openLocation的经纬度
+     success: function(res) {
+       var latitude = res.latitude
+       var longitude = res.longitude
+       Taro.openLocation({
+         latitude: latitude,
+         longitude: longitude,
+         scale: 28
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/location/wx.openLocation.html
    */
   function openLocation(OBJECT: openLocation.Param): Promise<any>
 
@@ -3728,65 +4547,64 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```html
-   *     <!-- map.wxml -->
-   *     <map id="myMap" show-location />
-   *
-   *     <button type="primary" bindtap="getCenterLocation">获取位置</button>
-   *     <button type="primary" bindtap="moveToLocation">移动位置</button>
-   *     <button type="primary" bindtap="translateMarker">移动标注</button>
-   *     <button type="primary" bindtap="includePoints">缩放视野展示所有经纬度</button>
-   *     ```
+   ```html
+   <!-- map.wxml -->
+   <map id="myMap" show-location />
+         <button type="primary" bindtap="getCenterLocation">获取位置</button>
+   <button type="primary" bindtap="moveToLocation">移动位置</button>
+   <button type="primary" bindtap="translateMarker">移动标注</button>
+   <button type="primary" bindtap="includePoints">缩放视野展示所有经纬度</button>
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // map.js
-   *     Page({
-   *       onReady: function (e) {
-   *         // 使用 Taro.createMapContext 获取 map 上下文
-   *         this.mapCtx = Taro.createMapContext('myMap')
-   *       },
-   *       getCenterLocation: function () {
-   *         this.mapCtx.getCenterLocation({
-   *           success: function(res){
-   *             console.log(res.longitude)
-   *             console.log(res.latitude)
-   *           }
-   *         })
-   *       },
-   *       moveToLocation: function () {
-   *         this.mapCtx.moveToLocation()
-   *       },
-   *       translateMarker: function() {
-   *         this.mapCtx.translateMarker({
-   *           markerId: 0,
-   *           autoRotate: true,
-   *           duration: 1000,
-   *           destination: {
-   *             latitude:23.10229,
-   *             longitude:113.3345211,
-   *           },
-   *           animationEnd() {
-   *             console.log('animation end')
-   *           }
-   *         })
-   *       },
-   *       includePoints: function() {
-   *         this.mapCtx.includePoints({
-   *           padding: [10],
-   *           points: [{
-   *             latitude:23.10229,
-   *             longitude:113.3345211,
-   *           }, {
-   *             latitude:23.00229,
-   *             longitude:113.3345211,
-   *           }]
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-map.html#wxcreatemapcontextmapid-this
+   ```javascript
+   // map.js
+   Page({
+     onReady: function (e) {
+       // 使用 Taro.createMapContext 获取 map 上下文
+       this.mapCtx = Taro.createMapContext('myMap')
+     },
+     getCenterLocation: function () {
+       this.mapCtx.getCenterLocation({
+         success: function(res){
+           console.log(res.longitude)
+           console.log(res.latitude)
+         }
+       })
+     },
+     moveToLocation: function () {
+       this.mapCtx.moveToLocation()
+     },
+     translateMarker: function() {
+       this.mapCtx.translateMarker({
+         markerId: 0,
+         autoRotate: true,
+         duration: 1000,
+         destination: {
+           latitude:23.10229,
+           longitude:113.3345211,
+         },
+         animationEnd() {
+           console.log('animation end')
+         }
+       })
+     },
+     includePoints: function() {
+       this.mapCtx.includePoints({
+         padding: [10],
+         points: [{
+           latitude:23.10229,
+           longitude:113.3345211,
+         }, {
+           latitude:23.00229,
+           longitude:113.3345211,
+         }]
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/media/map/wx.createMapContext.html
    */
   function createMapContext(mapId: any, instance?: any): MapContext
 
@@ -3809,7 +4627,7 @@ declare namespace Taro {
       /**
        * 接口调用成功的回调函数 ，res = { longitude: "经度", latitude: "纬度"}
        */
-      type ParamPropSuccess = (res: { longitude: number, latitude: number }) => void
+      type ParamPropSuccess = (res: { longitude: number; latitude: number }) => void
       /**
        * 接口调用失败的回调函数
        */
@@ -3930,7 +4748,7 @@ declare namespace Taro {
   }
   class MapContext {
     /**
-     * 获取当前地图中心的经纬度，返回的是 gcj02 坐标系，可以用于 [`Taro.openLocation`](https://developers.weixin.qq.com/miniprogram/dev/api/location.html#wxopenlocationobject)
+     * 获取当前地图中心的经纬度，返回的是 gcj02 坐标系，可以用于 [`Taro.openLocation`](https://developers.weixin.qq.com/miniprogram/dev/api/location/wx.openLocation.html)
      */
     getCenterLocation(OBJECT: MapContext.getCenterLocation.Param): any
     /**
@@ -4040,20 +4858,20 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getSystemInfo({
-   *       success: function(res) {
-   *         console.log(res.model)
-   *         console.log(res.pixelRatio)
-   *         console.log(res.windowWidth)
-   *         console.log(res.windowHeight)
-   *         console.log(res.language)
-   *         console.log(res.version)
-   *         console.log(res.platform)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/systeminfo.html#wxgetsysteminfoobject
+   ```javascript
+   Taro.getSystemInfo({
+     success: function(res) {
+       console.log(res.model)
+       console.log(res.pixelRatio)
+       console.log(res.windowWidth)
+       console.log(res.windowHeight)
+       console.log(res.language)
+       console.log(res.version)
+       console.log(res.platform)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/system/system-info/wx.getSystemInfo.html
    */
   function getSystemInfo(OBJECT?: getSystemInfo.Param): Promise<getSystemInfo.Promised>
 
@@ -4134,21 +4952,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     try {
-   *       var res = Taro.getSystemInfoSync()
-   *       console.log(res.model)
-   *       console.log(res.pixelRatio)
-   *       console.log(res.windowWidth)
-   *       console.log(res.windowHeight)
-   *       console.log(res.language)
-   *       console.log(res.version)
-   *       console.log(res.platform)
-   *     } catch (e) {
-   *       // Do something when catch error
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/systeminfo.html#wxgetsysteminfosync
+   ```javascript
+   try {
+     var res = Taro.getSystemInfoSync()
+     console.log(res.model)
+     console.log(res.pixelRatio)
+     console.log(res.windowWidth)
+     console.log(res.windowHeight)
+     console.log(res.language)
+     console.log(res.version)
+     console.log(res.platform)
+   } catch (e) {
+     // Do something when catch error
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/system/system-info/wx.getSystemInfoSync.html
    */
   function getSystemInfoSync(): getSystemInfoSync.Return
 
@@ -4171,19 +4989,18 @@ declare namespace Taro {
    *
    * **示例：**
    *
-   *     ```js
-   *     Taro.canIUse('openBluetoothAdapter')
-   *     Taro.canIUse('getSystemInfoSync.return.screenWidth')
-   *     Taro.canIUse('getSystemInfo.success.screenWidth')
-   *     Taro.canIUse('showToast.object.image')
-   *     Taro.canIUse('onCompassChange.callback.direction')
-   *     Taro.canIUse('request.object.method.GET')
-   *
-   *     Taro.canIUse('live-player')
-   *     Taro.canIUse('text.selectable')
-   *     Taro.canIUse('button.open-type.contact')
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-caniuse.html#wxcaniusestring
+   ```js
+   Taro.canIUse('openBluetoothAdapter')
+   Taro.canIUse('getSystemInfoSync.return.screenWidth')
+   Taro.canIUse('getSystemInfo.success.screenWidth')
+   Taro.canIUse('showToast.object.image')
+   Taro.canIUse('onCompassChange.callback.direction')
+   Taro.canIUse('request.object.method.GET')
+         Taro.canIUse('live-player')
+   Taro.canIUse('text.selectable')
+   Taro.canIUse('button.open-type.contact')
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/wx.canIUse.html
    */
   function canIUse(String: any): boolean
 
@@ -4201,16 +5018,16 @@ declare namespace Taro {
    *
    * **success返回参数说明：**
    *
-   *     ```javascript
-   *     Taro.getNetworkType({
-   *       success: function(res) {
-   *         // 返回网络类型, 有效值：
-   *         // wifi/2g/3g/4g/unknown(Android下不常见的网络类型)/none(无网络)
-   *         var networkType = res.networkType
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device.html#wxgetnetworktypeobject
+   ```javascript
+   Taro.getNetworkType({
+     success: function(res) {
+       // 返回网络类型, 有效值：
+       // wifi/2g/3g/4g/unknown(Android下不常见的网络类型)/none(无网络)
+       var networkType = res.networkType
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/network/wx.getNetworkType.html
    */
   function getNetworkType(OBJECT?: getNetworkType.Param): Promise<getNetworkType.Promised>
 
@@ -4245,13 +5062,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onNetworkStatusChange(function(res) {
-   *       console.log(res.isConnected)
-   *       console.log(res.networkType)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device.html#wxonnetworkstatuschangecallback
+   ```javascript
+   Taro.onNetworkStatusChange(function(res) {
+     console.log(res.isConnected)
+     console.log(res.networkType)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/network/wx.onNetworkStatusChange.html
    */
   function onNetworkStatusChange(CALLBACK: onNetworkStatusChange.Param): void
 
@@ -4267,7 +5084,7 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 设置屏幕亮度。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device.html#wxsetscreenbrightnessobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/screen/wx.setScreenBrightness.html
    */
   function setScreenBrightness(OBJECT: setScreenBrightness.Param): Promise<any>
 
@@ -4284,7 +5101,12 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 获取屏幕亮度。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device.html#wxgetscreenbrightnessobject
+   *
+   * **Bug & Tip：**
+   *
+   * 1. `tip`: `getScreenBrightness` 接口若安卓系统设置中开启了自动调节亮度功能，则屏幕亮度会根据光线自动调整，该接口仅能获取自动调节亮度之前的值，而非实时的亮度值。
+   *
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/screen/wx.getScreenBrightness.html
    */
   function getScreenBrightness(OBJECT?: getScreenBrightness.Param): Promise<getScreenBrightness.Promised>
 
@@ -4295,7 +5117,7 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 使手机发生较长时间的振动（400ms）
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device.html#wxvibratelongobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/vibrate/wx.vibrateLong.html
    */
   function vibrateLong(OBJECT?: vibrateLong.Param): Promise<any>
 
@@ -4310,8 +5132,8 @@ declare namespace Taro {
    * **Bug & Tip：**
    *
    * 1.  `tip`：`vibrateShort` 接口仅在 iPhone7/iPhone7Plus 及 Android 机型生效
-   * 2.  `tip`: `getScreenBrightness` 接口若安卓系统设置中开启了自动调节亮度功能，则屏幕亮度会根据光线自动调整，该接口仅能获取自动调节亮度之前的值，而非实时的亮度值。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device.html#wxvibrateshortobject
+   *
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/vibrate/wx.vibrateShort.html
    */
   function vibrateShort(OBJECT?: vibrateShort.Param): Promise<any>
 
@@ -4337,14 +5159,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onAccelerometerChange(function(res) {
-   *       console.log(res.x)
-   *       console.log(res.y)
-   *       console.log(res.z)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/accelerometer.html#wxonaccelerometerchangecallback
+   ```javascript
+   Taro.onAccelerometerChange(function(res) {
+     console.log(res.x)
+     console.log(res.y)
+     console.log(res.z)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/accelerometer/wx.onAccelerometerChange.html
    */
   function onAccelerometerChange(CALLBACK: onAccelerometerChange.Param): void
 
@@ -4358,10 +5180,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startAccelerometer()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/accelerometer.html#wxstartaccelerometerobject
+   ```javascript
+   Taro.startAccelerometer()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/accelerometer/wx.startAccelerometer.html
    */
   function startAccelerometer(OBJECT?: startAccelerometer.Param): Promise<any>
 
@@ -4375,10 +5197,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.stopAccelerometer()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/accelerometer.html#wxstopaccelerometerobject
+   ```javascript
+   Taro.stopAccelerometer()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/accelerometer/wx.stopAccelerometer.html
    */
   function stopAccelerometer(OBJECT?: stopAccelerometer.Param): Promise<any>
 
@@ -4396,12 +5218,12 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onCompassChange(function (res) {
-   *       console.log(res.direction)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/compass.html#wxoncompasschangecallback
+   ```javascript
+   Taro.onCompassChange(function (res) {
+     console.log(res.direction)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/compass/wx.onCompassChange.html
    */
   function onCompassChange(CALLBACK: onCompassChange.Param): void
 
@@ -4415,10 +5237,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startCompass()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/compass.html#wxstartcompassobject
+   ```javascript
+   Taro.startCompass()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/compass/wx.startCompass.html
    */
   function startCompass(OBJECT?: startCompass.Param): Promise<any>
 
@@ -4432,10 +5254,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.stopCompass()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/compass.html#wxstopcompassobject
+   ```javascript
+   Taro.stopCompass()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/compass/wx.stopCompass.html
    */
   function stopCompass(OBJECT?: stopCompass.Param): Promise<any>
 
@@ -4451,12 +5273,12 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.makePhoneCall({
-   *       phoneNumber: '1340000' //仅为示例，并非真实的电话号码
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/phonecall.html#wxmakephonecallobject
+   ```javascript
+   Taro.makePhoneCall({
+     phoneNumber: '1340000' //仅为示例，并非真实的电话号码
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/phone/wx.makePhoneCall.html
    */
   function makePhoneCall(OBJECT: makePhoneCall.Param): Promise<any>
 
@@ -4499,23 +5321,22 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 允许从相机和相册扫码
-   *     Taro.scanCode({
-   *       success: (res) => {
-   *         console.log(res)
-   *       }
-   *     })
-   *
-   *     // 只允许从相机扫码
-   *     Taro.scanCode({
-   *       onlyFromCamera: true,
-   *       success: (res) => {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/scancode.html#wxscancodeobject
+   ```javascript
+   // 允许从相机和相册扫码
+   Taro.scanCode({
+     success: (res) => {
+       console.log(res)
+     }
+   })
+         // 只允许从相机扫码
+   Taro.scanCode({
+     onlyFromCamera: true,
+     success: (res) => {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/scan/wx.scanCode.html
    */
   function scanCode(OBJECT?: scanCode.Param): Promise<scanCode.Promised>
 
@@ -4534,19 +5355,19 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setClipboardData({
-   *       data: 'data',
-   *       success: function(res) {
-   *         Taro.getClipboardData({
-   *           success: function(res) {
-   *             console.log(res.data) // data
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/clipboard.html#wxsetclipboarddataobject
+   ```javascript
+   Taro.setClipboardData({
+     data: 'data',
+     success: function(res) {
+       Taro.getClipboardData({
+         success: function(res) {
+           console.log(res.data) // data
+         }
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/clipboard/wx.setClipboardData.html
    */
   function setClipboardData(OBJECT: setClipboardData.Param): Promise<any>
 
@@ -4566,14 +5387,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getClipboardData({
-   *       success: function(res){
-   *         console.log(res.data)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/clipboard.html#wxgetclipboarddataobject
+   ```javascript
+   Taro.getClipboardData({
+     success: function(res){
+       console.log(res.data)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/clipboard/wx.getClipboardData.html
    */
   function getClipboardData(OBJECT?: getClipboardData.Param): Promise<getClipboardData.Promised>
 
@@ -4593,14 +5414,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.openBluetoothAdapter({
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxopenbluetoothadapterobject
+   ```javascript
+   Taro.openBluetoothAdapter({
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.openBluetoothAdapter.html
    */
   function openBluetoothAdapter(OBJECT?: openBluetoothAdapter.Param): Promise<any>
 
@@ -4614,14 +5435,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.closeBluetoothAdapter({
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxclosebluetoothadapterobject
+   ```javascript
+   Taro.closeBluetoothAdapter({
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.closeBluetoothAdapter.html
    */
   function closeBluetoothAdapter(OBJECT?: closeBluetoothAdapter.Param): Promise<any>
 
@@ -4649,14 +5470,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getBluetoothAdapterState({
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxgetbluetoothadapterstateobject
+   ```javascript
+   Taro.getBluetoothAdapterState({
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.getBluetoothAdapterState.html
    */
   function getBluetoothAdapterState(OBJECT?: getBluetoothAdapterState.Param): Promise<getBluetoothAdapterState.Promised>
 
@@ -4680,12 +5501,12 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onBluetoothAdapterStateChange(function(res) {
-   *       console.log(`adapterState changed, now is`, res)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxonbluetoothadapterstatechangecallback
+   ```javascript
+   Taro.onBluetoothAdapterStateChange(function(res) {
+     console.log(`adapterState changed, now is`, res)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.onBluetoothAdapterStateChange.html
    */
   function onBluetoothAdapterStateChange(CALLBACK: onBluetoothAdapterStateChange.Param): void
 
@@ -4718,16 +5539,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 以微信硬件平台的蓝牙智能灯为例，主服务的 UUID 是 FEE7。传入这个参数，只搜索主服务 UUID 为 FEE7 的设备
-   *     Taro.startBluetoothDevicesDiscovery({
-   *       services: ['FEE7'],
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxstartbluetoothdevicesdiscoveryobject
+   ```javascript
+   // 以微信硬件平台的蓝牙智能灯为例，主服务的 UUID 是 FEE7。传入这个参数，只搜索主服务 UUID 为 FEE7 的设备
+   Taro.startBluetoothDevicesDiscovery({
+     services: ['FEE7'],
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.startBluetoothDevicesDiscovery.html
    */
   function startBluetoothDevicesDiscovery(OBJECT?: startBluetoothDevicesDiscovery.Param): Promise<startBluetoothDevicesDiscovery.Promised>
 
@@ -4747,14 +5568,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.stopBluetoothDevicesDiscovery({
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxstopbluetoothdevicesdiscoveryobject
+   ```javascript
+   Taro.stopBluetoothDevicesDiscovery({
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.stopBluetoothDevicesDiscovery.html
    */
   function stopBluetoothDevicesDiscovery(OBJECT?: stopBluetoothDevicesDiscovery.Param): Promise<stopBluetoothDevicesDiscovery.Promised>
 
@@ -4819,27 +5640,27 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // ArrayBuffer转16进度字符串示例
-   *     function ab2hex(buffer) {
-   *       var hexArr = Array.prototype.map.call(
-   *         new Uint8Array(buffer),
-   *         function(bit) {
-   *           return ('00' + bit.toString(16)).slice(-2)
-   *         }
-   *       )
-   *       return hexArr.join('');
-   *     }
-   *     Taro.getBluetoothDevices({
-   *       success: function (res) {
-   *         console.log(res)
-   *         if (res.devices[0]) {
-   *           console.log(ab2hex(res.devices[0].advertisData))
-   *         }
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxgetbluetoothdevicesobject
+   ```javascript
+   // ArrayBuffer转16进度字符串示例
+   function ab2hex(buffer) {
+     var hexArr = Array.prototype.map.call(
+       new Uint8Array(buffer),
+       function(bit) {
+         return ('00' + bit.toString(16)).slice(-2)
+       }
+     )
+     return hexArr.join('');
+   }
+   Taro.getBluetoothDevices({
+     success: function (res) {
+       console.log(res)
+       if (res.devices[0]) {
+         console.log(ab2hex(res.devices[0].advertisData))
+       }
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.getBluetoothDevices.html
    */
   function getBluetoothDevices(OBJECT?: getBluetoothDevices.Param): Promise<getBluetoothDevices.Promised>
 
@@ -4899,24 +5720,24 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // ArrayBuffer转16进度字符串示例
-   *     function ab2hex(buffer) {
-   *       var hexArr = Array.prototype.map.call(
-   *         new Uint8Array(buffer),
-   *         function(bit) {
-   *           return ('00' + bit.toString(16)).slice(-2)
-   *         }
-   *       )
-   *       return hexArr.join('');
-   *     }
-   *     Taro.onBluetoothDeviceFound(function(devices) {
-   *       console.log('new device list has founded')
-   *       console.dir(devices)
-   *       console.log(ab2hex(devices[0].advertisData))
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxonbluetoothdevicefoundcallback
+   ```javascript
+   // ArrayBuffer转16进度字符串示例
+   function ab2hex(buffer) {
+     var hexArr = Array.prototype.map.call(
+       new Uint8Array(buffer),
+       function(bit) {
+         return ('00' + bit.toString(16)).slice(-2)
+       }
+     )
+     return hexArr.join('');
+   }
+   Taro.onBluetoothDeviceFound(function(devices) {
+     console.log('new device list has founded')
+     console.dir(devices)
+     console.log(ab2hex(devices[0].advertisData))
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.onBluetoothDeviceFound.html
    */
   function onBluetoothDeviceFound(CALLBACK: onBluetoothDeviceFound.Param): void
 
@@ -4963,14 +5784,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getConnectedBluetoothDevices({
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxgetconnectedbluetoothdevicesobject
+   ```javascript
+   Taro.getConnectedBluetoothDevices({
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth/wx.getConnectedBluetoothDevices.html
    */
   function getConnectedBluetoothDevices(OBJECT: getConnectedBluetoothDevices.Param): Promise<getConnectedBluetoothDevices.Promised>
 
@@ -5003,16 +5824,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.createBLEConnection({
-   *       // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
-   *       deviceId: deviceId,
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxcreatebleconnectionobject
+   ```javascript
+   Taro.createBLEConnection({
+     // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
+     deviceId: deviceId,
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.createBLEConnection.html
    */
   function createBLEConnection(OBJECT: createBLEConnection.Param): Promise<createBLEConnection.Promised>
 
@@ -5037,15 +5858,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.closeBLEConnection({
-   *       deviceId:deviceId
-   *       success: function (res) {
-   *         console.log(res)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxclosebleconnectionobject
+   ```javascript
+   Taro.closeBLEConnection({
+     deviceId:deviceId
+     success: function (res) {
+       console.log(res)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.closeBLEConnection.html
    */
   function closeBLEConnection(OBJECT: closeBLEConnection.Param): Promise<closeBLEConnection.Promised>
 
@@ -5069,13 +5890,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onBLEConnectionStateChange(function(res) {
-   *       // 该方法回调中可以用于处理连接意外断开等异常情况
-   *       console.log(`device ${res.deviceId} state has changed, connected: ${res.connected}`)
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxonbleconnectionstatechangecallback
+   ```javascript
+   Taro.onBLEConnectionStateChange(function(res) {
+     // 该方法回调中可以用于处理连接意外断开等异常情况
+     console.log(`device ${res.deviceId} state has changed, connected: ${res.connected}`)
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.onBLEConnectionStateChange.html
    */
   function onBLEConnectionStateChange(CALLBACK: onBLEConnectionStateChange.Param): void
 
@@ -5122,16 +5943,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getBLEDeviceServices({
-   *       // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
-   *       deviceId: deviceId,
-   *       success: function (res) {
-   *         console.log('device services:', res.services)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxgetbledeviceservicesobject
+   ```javascript
+   Taro.getBLEDeviceServices({
+     // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
+     deviceId: deviceId,
+     success: function (res) {
+       console.log('device services:', res.services)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.getBLEDeviceServices.html
    */
   function getBLEDeviceServices(OBJECT: getBLEDeviceServices.Param): Promise<getBLEDeviceServices.Promised>
 
@@ -5204,18 +6025,18 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getBLEDeviceCharacteristics({
-   *       // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
-   *       deviceId: deviceId,
-   *       // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
-   *       serviceId: serviceId,
-   *       success: function (res) {
-   *         console.log('device getBLEDeviceCharacteristics:', res.characteristics)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxgetbledevicecharacteristicsobject
+   ```javascript
+   Taro.getBLEDeviceCharacteristics({
+     // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
+     deviceId: deviceId,
+     // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
+     serviceId: serviceId,
+     success: function (res) {
+       console.log('device getBLEDeviceCharacteristics:', res.characteristics)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.getBLEDeviceCharacteristics.html
    */
   function getBLEDeviceCharacteristics(OBJECT: getBLEDeviceCharacteristics.Param): Promise<getBLEDeviceCharacteristics.Promised>
 
@@ -5257,25 +6078,24 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 必须在这里的回调才能获取
-   *     Taro.onBLECharacteristicValueChange(function(characteristic) {
-   *       console.log('characteristic value comed:', characteristic)
-   *     })
-   *
-   *     Taro.readBLECharacteristicValue({
-   *       // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接  [**new**]
-   *       deviceId: deviceId,
-   *       // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
-   *       serviceId: serviceId,
-   *       // 这里的 characteristicId 需要在上面的 getBLEDeviceCharacteristics 接口中获取
-   *       characteristicId: characteristicId,
-   *       success: function (res) {
-   *         console.log('readBLECharacteristicValue:', res.errCode)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxreadblecharacteristicvalueobject
+   ```javascript
+   // 必须在这里的回调才能获取
+   Taro.onBLECharacteristicValueChange(function(characteristic) {
+     console.log('characteristic value comed:', characteristic)
+   })
+         Taro.readBLECharacteristicValue({
+     // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接  [  new  ]
+     deviceId: deviceId,
+     // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
+     serviceId: serviceId,
+     // 这里的 characteristicId 需要在上面的 getBLEDeviceCharacteristics 接口中获取
+     characteristicId: characteristicId,
+     success: function (res) {
+       console.log('readBLECharacteristicValue:', res.errCode)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.readBLECharacteristicValue.html
    */
   function readBLECharacteristicValue(OBJECT: readBLECharacteristicValue.Param): Promise<readBLECharacteristicValue.Promised>
 
@@ -5321,27 +6141,26 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 向蓝牙设备发送一个0x00的16进制数据
-   *     let buffer = new ArrayBuffer(1)
-   *     let dataView = new DataView(buffer)
-   *     dataView.setUint8(0, 0)
-   *
-   *     Taro.writeBLECharacteristicValue({
-   *       // 这里的 deviceId 需要在上面的 getBluetoothDevices 或 onBluetoothDeviceFound 接口中获取
-   *       deviceId: deviceId,
-   *       // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
-   *       serviceId: serviceId,
-   *       // 这里的 characteristicId 需要在上面的 getBLEDeviceCharacteristics 接口中获取
-   *       characteristicId: characteristicId,
-   *       // 这里的value是ArrayBuffer类型
-   *       value: buffer,
-   *       success: function (res) {
-   *         console.log('writeBLECharacteristicValue success', res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxwriteblecharacteristicvalueobject
+   ```javascript
+   // 向蓝牙设备发送一个0x00的16进制数据
+   let buffer = new ArrayBuffer(1)
+   let dataView = new DataView(buffer)
+   dataView.setUint8(0, 0)
+         Taro.writeBLECharacteristicValue({
+     // 这里的 deviceId 需要在上面的 getBluetoothDevices 或 onBluetoothDeviceFound 接口中获取
+     deviceId: deviceId,
+     // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
+     serviceId: serviceId,
+     // 这里的 characteristicId 需要在上面的 getBLEDeviceCharacteristics 接口中获取
+     characteristicId: characteristicId,
+     // 这里的value是ArrayBuffer类型
+     value: buffer,
+     success: function (res) {
+       console.log('writeBLECharacteristicValue success', res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.writeBLECharacteristicValue.html
    */
   function writeBLECharacteristicValue(OBJECT: writeBLECharacteristicValue.Param): Promise<writeBLECharacteristicValue.Promised>
 
@@ -5385,21 +6204,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.notifyBLECharacteristicValueChange({
-   *       state: true, // 启用 notify 功能
-   *       // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
-   *       deviceId: deviceId,
-   *       // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
-   *       serviceId: serviceId,
-   *       // 这里的 characteristicId 需要在上面的 getBLEDeviceCharacteristics 接口中获取
-   *       characteristicId: characteristicId,
-   *       success: function (res) {
-   *         console.log('notifyBLECharacteristicValueChange success', res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxnotifyblecharacteristicvaluechangeobject
+   ```javascript
+   Taro.notifyBLECharacteristicValueChange({
+     state: true, // 启用 notify 功能
+     // 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
+     deviceId: deviceId,
+     // 这里的 serviceId 需要在上面的 getBLEDeviceServices 接口中获取
+     serviceId: serviceId,
+     // 这里的 characteristicId 需要在上面的 getBLEDeviceCharacteristics 接口中获取
+     characteristicId: characteristicId,
+     success: function (res) {
+       console.log('notifyBLECharacteristicValueChange success', res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.notifyBLECharacteristicValueChange.html
    */
   function notifyBLECharacteristicValueChange(OBJECT: notifyBLECharacteristicValueChange.Param): Promise<notifyBLECharacteristicValueChange.Promised>
 
@@ -5431,23 +6250,23 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // ArrayBuffer转16进度字符串示例
-   *     function ab2hex(buffer) {
-   *       var hexArr = Array.prototype.map.call(
-   *         new Uint8Array(buffer),
-   *         function(bit) {
-   *           return ('00' + bit.toString(16)).slice(-2)
-   *         }
-   *       )
-   *       return hexArr.join('');
-   *     }
-   *     Taro.onBLECharacteristicValueChange(function(res) {
-   *       console.log(`characteristic ${res.characteristicId} has changed, now is ${res.value}`)
-   *       console.log(ab2hext(res.value))
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/bluetooth.html#wxonblecharacteristicvaluechangecallback
+   ```javascript
+   // ArrayBuffer转16进度字符串示例
+   function ab2hex(buffer) {
+     var hexArr = Array.prototype.map.call(
+       new Uint8Array(buffer),
+       function(bit) {
+         return ('00' + bit.toString(16)).slice(-2)
+       }
+     )
+     return hexArr.join('');
+   }
+   Taro.onBLECharacteristicValueChange(function(res) {
+     console.log(`characteristic ${res.characteristicId} has changed, now is ${res.value}`)
+     console.log(ab2hext(res.value))
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/bluetooth-ble/wx.onBLECharacteristicValueChange.html
    */
   function onBLECharacteristicValueChange(CALLBACK: onBLECharacteristicValueChange.Param): void
 
@@ -5472,13 +6291,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startBeaconDiscovery({
-   *         success(res) {
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/iBeacon.html#wxstartbeacondiscoveryobject
+   ```javascript
+   Taro.startBeaconDiscovery({
+       success(res) {
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/ibeacon/wx.startBeaconDiscovery.html
    */
   function startBeaconDiscovery(OBJECT: startBeaconDiscovery.Param): Promise<startBeaconDiscovery.Promised>
 
@@ -5495,7 +6314,7 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 停止搜索附近的`iBeacon`设备
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/iBeacon.html#wxstopbeacondiscoveryobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/ibeacon/wx.stopBeaconDiscovery.html
    */
   function stopBeaconDiscovery(OBJECT?: stopBeaconDiscovery.Param): Promise<stopBeaconDiscovery.Promised>
 
@@ -5546,7 +6365,7 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 获取所有已搜索到的`iBeacon`设备
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/iBeacon.html#wxgetbeaconsobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/ibeacon/wx.getBeacons.html
    */
   function getBeacons(OBJECT?: getBeacons.Param): Promise<getBeacons.Promised>
 
@@ -5593,7 +6412,7 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 监听 `iBeacon` 设备的更新事件
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/iBeacon.html#wxonbeaconupdatecallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/ibeacon/wx.onBeaconUpdate.html
    */
   function onBeaconUpdate(CALLBACK: onBeaconUpdate.Param): void
 
@@ -5614,7 +6433,7 @@ declare namespace Taro {
    * @since 1.2.0
    *
    * 监听 `iBeacon` 服务的状态变化
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/iBeacon.html#wxonbeaconservicechangecallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/ibeacon/wx.onBeaconServiceChange.html
    */
   function onBeaconServiceChange(CALLBACK: onBeaconServiceChange.Param): void
 
@@ -5639,13 +6458,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 保持屏幕常亮
-   *     Taro.setKeepScreenOn({
-   *         keepScreenOn: true
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/setKeepScreenOn.html#wxsetkeepscreenonobject
+   ```javascript
+   // 保持屏幕常亮
+   Taro.setKeepScreenOn({
+       keepScreenOn: true
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/screen/wx.setKeepScreenOn.html
    */
   function setKeepScreenOn(OBJECT: setKeepScreenOn.Param): Promise<setKeepScreenOn.Promised>
 
@@ -5656,12 +6475,12 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onUserCaptureScreen(function(res) {
-   *         console.log('用户截屏了')
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/onUserCaptureScreen.html#wxonusercapturescreencallback
+   ```javascript
+   Taro.onUserCaptureScreen(function(res) {
+       console.log('用户截屏了')
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/screen/wx.onUserCaptureScreen.html
    */
   function onUserCaptureScreen(CALLBACK: any): void
 
@@ -5809,7 +6628,7 @@ declare namespace Taro {
    *   success   |  ok               |  添加成功
    *   fail      |  fail cancel      |  用户取消操作
    *   fail      |  fail ${detail}   |调用失败，detail 加上详细信息
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/phone-contact.html#wxaddphonecontactobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/contact/wx.addPhoneContact.html
    */
   function addPhoneContact(OBJECT: addPhoneContact.Param): Promise<any>
 
@@ -5833,14 +6652,14 @@ declare namespace Taro {
    *
    * **success返回参数说明：**
    *
-   *     ```javascript
-   *     Taro.getHCEState({
-   *       success: function(res) {
-   *         console.log(res.errCode)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/nfc.html#wxgethcestateobject
+   ```javascript
+   Taro.getHCEState({
+     success: function(res) {
+       console.log(res.errCode)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/nfc/wx.getHCEState.html
    */
   function getHCEState(OBJECT?: getHCEState.Param): Promise<getHCEState.Promised>
 
@@ -5869,15 +6688,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startHCE({
-   *       aid_list: ['F222222222']
-   *       success: function(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/nfc.html#wxstarthceobject
+   ```javascript
+   Taro.startHCE({
+     aid_list: ['F222222222']
+     success: function(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/nfc/wx.startHCE.html
    */
   function startHCE(OBJECT: startHCE.Param): Promise<startHCE.Promised>
 
@@ -5901,14 +6720,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.stopHCE({
-   *       success: function(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/nfc.html#wxstophceobject
+   ```javascript
+   Taro.stopHCE({
+     success: function(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/nfc/wx.stopHCE.html
    */
   function stopHCE(OBJECT?: stopHCE.Param): Promise<stopHCE.Promised>
 
@@ -5936,7 +6755,7 @@ declare namespace Taro {
    *
    * *   1：消息为HCE Apdu Command类型，小程序需对此指令进行处理，并调用 `sendHCEMessage` 接口返回处理指令；
    * *   2：消息为设备离场事件
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/nfc.html#wxonhcemessagecallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/nfc/wx.onHCEMessage.html
    */
   function onHCEMessage(CALLBACK: onHCEMessage.Param): void
 
@@ -5980,22 +6799,21 @@ declare namespace Taro {
    *
    * **success返回参数说明：**
    *
-   *     ```javascript
-   *     const buffer = new ArrayBuffer(1)
-   *     const dataView = new DataView(buffer)
-   *     dataView.setUint8(0, 0)
-   *
-   *     Taro.startHCE({
-   *       success: function(res) {
-   *         Taro.onHCEMessage(function(res) {
-   *           if (res.messageType === 1) {
-   *             Taro.sendHCEMessage({data: buffer})
-   *           }
-   *         })
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/nfc.html#wxsendhcemessageobject
+   ```javascript
+   const buffer = new ArrayBuffer(1)
+   const dataView = new DataView(buffer)
+   dataView.setUint8(0, 0)
+         Taro.startHCE({
+     success: function(res) {
+       Taro.onHCEMessage(function(res) {
+         if (res.messageType === 1) {
+           Taro.sendHCEMessage({data: buffer})
+         }
+       })
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/nfc/wx.sendHCEMessage.html
    */
   function sendHCEMessage(OBJECT: sendHCEMessage.Param): Promise<sendHCEMessage.Promised>
 
@@ -6009,14 +6827,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startWifi({
-   *       success: function(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxstartwifiobject
+   ```javascript
+   Taro.startWifi({
+     success: function(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.startWifi.html
    */
   function startWifi(OBJECT?: startWifi.Param): Promise<any>
 
@@ -6030,14 +6848,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.stopWifi({
-   *       success: function(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxstopwifiobject
+   ```javascript
+   Taro.stopWifi({
+     success: function(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.stopWifi.html
    */
   function stopWifi(OBJECT?: stopWifi.Param): Promise<any>
 
@@ -6064,16 +6882,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.connectWifi({
-   *       SSID: '',
-   *       BSSID: '',
-   *       success: function(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxconnectwifiobject
+   ```javascript
+   Taro.connectWifi({
+     SSID: '',
+     BSSID: '',
+     success: function(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.connectWifi.html
    */
   function connectWifi(OBJECT: connectWifi.Param): Promise<any>
 
@@ -6084,7 +6902,7 @@ declare namespace Taro {
    * @since 1.6.0
    *
    * 请求获取 Wi-Fi 列表，在 `onGetWifiList` 注册的回调中返回 wifiList 数据。iOS 将跳转到系统的 Wi-Fi 界面，Android 不会跳转。 **iOS 11.0 及 iOS 11.1 两个版本因系统问题，该方法失效。但在 iOS 11.2 中已修复。**
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxgetwifilistobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.getWifiList.html
    */
   function getWifiList(OBJECT?: getWifiList.Param): Promise<any>
 
@@ -6123,7 +6941,7 @@ declare namespace Taro {
    * @since 1.6.0
    *
    * 监听在获取到 Wi-Fi 列表数据时的事件，在回调中将返回 wifiList。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxongetwifilistcallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.onGetWifiList.html
    */
   function onGetWifiList(CALLBACK: onGetWifiList.Param): void
 
@@ -6166,25 +6984,25 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.onGetWifiList(function(res) {
-   *       if (res.wifiList.length) {
-   *         Taro.setWifiList({
-   *           wifiList: [{
-   *             SSID: res.wifiList[0].SSID,
-   *             BSSID: res.wifiList[0].BSSID,
-   *             password: '123456'
-   *           }]
-   *         })
-   *       } else {
-   *         Taro.setWifiList({
-   *           wifiList: []
-   *         })
-   *       }
-   *     })
-   *     Taro.getWifiList()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxsetwifilistobject
+   ```javascript
+   Taro.onGetWifiList(function(res) {
+     if (res.wifiList.length) {
+       Taro.setWifiList({
+         wifiList: [{
+           SSID: res.wifiList[0].SSID,
+           BSSID: res.wifiList[0].BSSID,
+           password: '123456'
+         }]
+       })
+     } else {
+       Taro.setWifiList({
+         wifiList: []
+       })
+     }
+   })
+   Taro.getWifiList()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.setWifiList.html
    */
   function setWifiList(OBJECT: setWifiList.Param): Promise<any>
 
@@ -6222,7 +7040,7 @@ declare namespace Taro {
    * @since 1.6.0
    *
    * 监听连接上 Wi-Fi 的事件。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxonwificonnectedcallback
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.onWifiConnected.html
    */
   function onWifiConnected(CALLBACK: onWifiConnected.Param): void
 
@@ -6280,7 +7098,7 @@ declare namespace Taro {
    *   12009   |  system config err       | 系统运营商配置拒绝连接 Wi-Fi
    *   12010   |  system internal error   |系统其他错误，需要在errmsg打印具体的错误原因
    *   12011   |  weapp in background     |  应用在后台无法配置 Wi-Fi
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/wifi.html#wxgetconnectedwifiobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/device/wifi/wx.getConnectedWifi.html
    */
   function getConnectedWifi(OBJECT?: getConnectedWifi.Param): Promise<getConnectedWifi.Promised>
 
@@ -6316,21 +7134,45 @@ declare namespace Taro {
        * 是否显示透明蒙层，防止触摸穿透，默认：false
        */
       mask?: boolean
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 显示消息提示框
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.showToast({
-   *       title: '成功',
-   *       icon: 'success',
-   *       duration: 2000
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxshowtoastobject
+   ```javascript
+   Taro.showToast({
+     title: '成功',
+     icon: 'success',
+     duration: 2000
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.showToast.html
    */
   function showToast(OBJECT: showToast.Param): Promise<any>
 
@@ -6344,19 +7186,43 @@ declare namespace Taro {
        * 是否显示透明蒙层，防止触摸穿透，默认：false
        */
       mask?: boolean
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * @since 1.1.0
    *
-   * 显示 loading 提示框, 需主动调用 [Taro.hideLoading](https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxhideloading) 才能关闭提示框
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxshowloadingobject
+   * 显示 loading 提示框, 需主动调用 [Taro.hideLoading](https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.hideLoading.html) 才能关闭提示框
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.showLoading.html
    */
-  function showLoading(OBJECT: showLoading.Param): Promise<any>
+  function showLoading(OBJECT?: showLoading.Param): Promise<any>
 
   /**
    * 隐藏消息提示框
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxhidetoast
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.hideToast.html
    */
   function hideToast(): void
 
@@ -6367,16 +7233,15 @@ declare namespace Taro {
    *
    * **示例：**
    *
-   *     ```javascript
-   *     Taro.showLoading({
-   *       title: '加载中',
-   *     })
-   *
-   *     setTimeout(function(){
-   *       Taro.hideLoading()
-   *     },2000)
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxhideloading
+   ```javascript
+   Taro.showLoading({
+     title: '加载中',
+   })
+         setTimeout(function(){
+     Taro.hideLoading()
+   },2000)
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.hideLoading.html
    */
   function hideLoading(): void
 
@@ -6397,7 +7262,7 @@ declare namespace Taro {
       /**
        * 提示的标题
        */
-      title: string
+      title?: string
       /**
        * 提示的内容
        */
@@ -6422,27 +7287,51 @@ declare namespace Taro {
        * 确定按钮的文字颜色，默认为"#3CC51F"
        */
       confirmColor?: string
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * ​显示模态弹窗
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.showModal({
-   *       title: '提示',
-   *       content: '这是一个模态弹窗',
-   *       success: function(res) {
-   *         if (res.confirm) {
-   *           console.log('用户点击确定')
-   *         } else if (res.cancel) {
-   *           console.log('用户点击取消')
-   *         }
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxshowmodalobject
+   ```javascript
+   Taro.showModal({
+     title: '提示',
+     content: '这是一个模态弹窗',
+     success: function(res) {
+       if (res.confirm) {
+         console.log('用户点击确定')
+       } else if (res.cancel) {
+         console.log('用户点击取消')
+       }
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.showModal.html
    */
   function showModal(OBJECT: showModal.Param): Promise<showModal.Promised>
 
@@ -6500,18 +7389,18 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.showActionSheet({
-   *       itemList: ['A', 'B', 'C'],
-   *       success: function(res) {
-   *         console.log(res.tapIndex)
-   *       },
-   *       fail: function(res) {
-   *         console.log(res.errMsg)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-react.html#wxshowactionsheetobject
+   ```javascript
+   Taro.showActionSheet({
+     itemList: ['A', 'B', 'C'],
+     success: function(res) {
+       console.log(res.tapIndex)
+     },
+     fail: function(res) {
+       console.log(res.errMsg)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.showActionSheet.html
    */
   function showActionSheet(OBJECT: showActionSheet.Param): Promise<showActionSheet.Promised>
 
@@ -6530,12 +7419,12 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setTopBarText({
-   *       text: 'hello, world!'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui.html#wxsettopbartextobject
+   ```javascript
+   Taro.setTopBarText({
+     text: 'hello, world!'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/sticky/wx.setTopBarText.html
    */
   function setTopBarText(OBJECT: setTopBarText.Param): Promise<any>
 
@@ -6552,24 +7441,24 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setNavigationBarTitle({
-   *       title: '当前页面'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui.html#wxsetnavigationbartitleobject
+   ```javascript
+   Taro.setNavigationBarTitle({
+     title: '当前页面'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/navigation-bar/wx.setNavigationBarTitle.html
    */
   function setNavigationBarTitle(OBJECT: setNavigationBarTitle.Param): Promise<any>
 
   /**
    * 在当前页面显示导航条加载动画。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui.html#wxshownavigationbarloading
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/navigation-bar/wx.showNavigationBarLoading.html
    */
   function showNavigationBarLoading(): void
 
   /**
    * 隐藏导航条加载动画。
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui.html#wxhidenavigationbarloading
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/navigation-bar/wx.hideNavigationBarLoading.html
    */
   function hideNavigationBarLoading(): void
 
@@ -6631,19 +7520,79 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setNavigationBarColor({
-   *         frontColor: '#ffffff',
-   *         backgroundColor: '#ff0000',
-   *         animation: {
-   *             duration: 400,
-   *             timingFunc: 'easeIn'
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/setNavigationBarColor.html#wxsetnavigationbarcolorobject
+   ```javascript
+   Taro.setNavigationBarColor({
+       frontColor: '#ffffff',
+       backgroundColor: '#ff0000',
+       animation: {
+           duration: 400,
+           timingFunc: 'easeIn'
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/navigation-bar/wx.setNavigationBarColor.html
    */
   function setNavigationBarColor(OBJECT: setNavigationBarColor.Param): Promise<setNavigationBarColor.Promised>
+
+  namespace setBackgroundTextStyle {
+    type Param = {
+      /**
+       * 下拉背景字体、loading 图的样式。
+       */
+      textStyle: 'dark' | 'light'
+    }
+  }
+
+  /**
+   * @since 2.1.0
+   *
+   * 动态设置下拉背景字体、loading 图的样式
+   *
+   * **示例代码：**
+   *
+   ```javascript
+   Taro.setBackgroundTextStyle({
+     textStyle: 'dark' // 下拉背景字体、loading 图的样式为dark
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/background/wx.setBackgroundTextStyle.html
+   */
+  function setBackgroundTextStyle(OBJECT: setBackgroundTextStyle.Param): Promise<any>
+
+  namespace setBackgroundColor {
+    type Param = {
+      /**
+       * 窗口的背景色，必须为十六进制颜色值
+       */
+      backgroundColor?: string
+      /**
+       * 顶部窗口的背景色，必须为十六进制颜色值，仅 iOS 支持
+       */
+      backgroundColorTop?: string
+      /**
+       * 底部窗口的背景色，必须为十六进制颜色值，仅 iOS 支持
+       */
+      backgroundColorBottom?: string
+    }
+  }
+
+  /**
+   * @since 2.1.0
+   *
+   * 动态设置窗口的背景色
+   *
+   * **示例代码：**
+   *
+   ```javascript
+   Taro.setBackgroundColor({
+     backgroundColor: '#ffffff', // 窗口的背景色为白色
+     backgroundColorTop: '#ffffff', // 顶部窗口的背景色为白色
+     backgroundColorBottom: '#ffffff', // 底部窗口的背景色为白色
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/background/wx.setBackgroundColor.html
+   */
+  function setBackgroundColor(OBJECT: setBackgroundColor.Param): Promise<any>
 
   namespace setTabBarBadge {
     type Param = {
@@ -6664,13 +7613,13 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setTabBarBadge({
-   *       index: 0,
-   *       text: '1'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxsettabbarbadgeobject
+   ```javascript
+   Taro.setTabBarBadge({
+     index: 0,
+     text: '1'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.setTabBarBadge.html
    */
   function setTabBarBadge(OBJECT: setTabBarBadge.Param): Promise<any>
 
@@ -6686,7 +7635,7 @@ declare namespace Taro {
    * @since 1.9.0
    *
    * 移除 tabBar 某一项右上角的文本
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxremovetabbarbadgeobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.removeTabBarBadge.html
    */
   function removeTabBarBadge(OBJECT: removeTabBarBadge.Param): Promise<any>
 
@@ -6702,7 +7651,7 @@ declare namespace Taro {
    * @since 1.9.0
    *
    * 显示 tabBar 某一项的右上角的红点
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxshowtabbarreddotobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.showTabBarRedDot.html
    */
   function showTabBarRedDot(OBJECT: showTabBarRedDot.Param): Promise<any>
 
@@ -6718,7 +7667,7 @@ declare namespace Taro {
    * @since 1.9.0
    *
    * 隐藏 tabBar 某一项的右上角的红点
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxhidetabbarreddotobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.hideTabBarRedDot.html
    */
   function hideTabBarRedDot(OBJECT: hideTabBarRedDot.Param): Promise<any>
 
@@ -6749,15 +7698,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setTabBarStyle({
-   *         color: '#FF0000',
-   *         selectedColor: '#00FF00',
-   *         backgroundColor: '#0000FF',
-   *         borderStyle: 'white'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxsettabbarstyleobject
+   ```javascript
+   Taro.setTabBarStyle({
+       color: '#FF0000',
+       selectedColor: '#00FF00',
+       backgroundColor: '#0000FF',
+       borderStyle: 'white'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.setTabBarStyle.html
    */
   function setTabBarStyle(OBJECT?: setTabBarStyle.Param): Promise<any>
 
@@ -6788,15 +7737,15 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.setTabBarItem({
-   *         index: 0,
-   *         text: 'text',
-   *         iconPath: '/path/to/iconPath',
-   *         selectedIconPath: '/path/to/selectedIconPath'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxsettabbaritemobject
+   ```javascript
+   Taro.setTabBarItem({
+       index: 0,
+       text: 'text',
+       iconPath: '/path/to/iconPath',
+       selectedIconPath: '/path/to/selectedIconPath'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.setTabBarItem.html
    */
   function setTabBarItem(OBJECT: setTabBarItem.Param): Promise<any>
 
@@ -6812,7 +7761,7 @@ declare namespace Taro {
    * @since 1.9.0
    *
    * 显示 tabBar
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxshowtabbarobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.showTabBar.html
    */
   function showTabBar(OBJECT?: showTabBar.Param): Promise<any>
 
@@ -6828,9 +7777,45 @@ declare namespace Taro {
    * @since 1.9.0
    *
    * 隐藏 tabBar
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-tabbar.html#wxhidetabbarobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/tab-bar/wx.hideTabBar.html
    */
   function hideTabBar(OBJECT?: hideTabBar.Param): Promise<any>
+
+  namespace getMenuButtonBoundingClientRect {
+    type Return = {
+      /**
+       * 宽度，单位：px
+       */
+      width: number
+      /**
+       * 高度，单位：px
+       */
+      height: number
+      /**
+       * 	上边界坐标，单位：px
+       */
+      top: number
+      /**
+       * 	右边界坐标，单位：px
+       */
+      right: number
+      /**
+       * 	下边界坐标，单位：px
+       */
+      bottom: number
+      /**
+       * 	左边界坐标，单位：px
+       */
+      left: number
+    }
+  }
+  /**
+   * @since 2.1.0
+   *
+   * 获取菜单按钮（右上角胶囊按钮）的布局位置信息。坐标信息以屏幕左上角为原点
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/menu/wx.getMenuButtonBoundingClientRect.html
+   */
+  function getMenuButtonBoundingClientRect(): getMenuButtonBoundingClientRect.Return
 
   namespace navigateTo {
     type Param = {
@@ -6838,30 +7823,45 @@ declare namespace Taro {
        * 需要跳转的应用内非 tabBar 的页面的路径 , 路径后可以带参数。参数与路径之间使用`?`分隔，参数键与参数值用`=`相连，不同参数用`&`分隔；如 'path?key=value&key2=value2'
        */
       url: string
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 保留当前页面，跳转到应用内的某个页面，使用`Taro.navigateBack`可以返回到原页面。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.navigateTo({
-   *       url: 'test?id=1'
-   *     })
-   *     ```
+   ```javascript
+   Taro.navigateTo({
+     url: 'test?id=1'
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     //test.js
-   *     Page({
-   *       onLoad: function(option){
-   *         console.log(option.query)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-navigate.html#wxnavigatetoobject
+   ```javascript
+   //test.js
+   Page({
+     onLoad: function(option){
+       console.log(option.query)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/route/wx.navigateTo.html
    */
   function navigateTo(OBJECT: navigateTo.Param): Promise<any>
 
@@ -6871,19 +7871,34 @@ declare namespace Taro {
        * 需要跳转的应用内非 tabBar 的页面的路径，路径后可以带参数。参数与路径之间使用`?`分隔，参数键与参数值用`=`相连，不同参数用`&`分隔；如 'path?key=value&key2=value2'
        */
       url: string
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 关闭当前页面，跳转到应用内的某个页面。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.redirectTo({
-   *       url: 'test?id=1'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-navigate.html#wxredirecttoobject
+   ```javascript
+   Taro.redirectTo({
+     url: 'test?id=1'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/route/wx.redirectTo.html
    */
   function redirectTo(OBJECT: redirectTo.Param): Promise<any>
 
@@ -6893,7 +7908,22 @@ declare namespace Taro {
        * 需要跳转的应用内页面路径 , 路径后可以带参数。参数与路径之间使用`?`分隔，参数键与参数值用`=`相连，不同参数用`&`分隔；如 'path?key=value&key2=value2'，如果跳转的页面路径是 tabBar 页面则不能带参数
        */
       url: string
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * @since 1.1.0
@@ -6902,23 +7932,23 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.reLaunch({
-   *       url: 'test?id=1'
-   *     })
-   *     ```
+   ```javascript
+   Taro.reLaunch({
+     url: 'test?id=1'
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     //test.js
-   *     Page({
-   *       onLoad: function(option){
-   *         console.log(option.query)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-navigate.html#wxrelaunchobject
+   ```javascript
+   //test.js
+   Page({
+     onLoad: function(option){
+       console.log(option.query)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/route/wx.reLaunch.html
    */
   function reLaunch(OBJECT: reLaunch.Param): Promise<any>
 
@@ -6928,35 +7958,50 @@ declare namespace Taro {
        * 需要跳转的 tabBar 页面的路径（需在 app.json 的 [tabBar](https://developers.weixin.qq.com/miniprogram/dev/framework/config.html#tabbar) 字段定义的页面），路径后不能带参数
        */
       url: string
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 跳转到 tabBar 页面，并关闭其他所有非 tabBar 页面
    *
    * **示例代码：**
    *
-   *     ```json
-   *     {
-   *       "tabBar": {
-   *         "list": [{
-   *           "pagePath": "index",
-   *           "text": "首页"
-   *         },{
-   *           "pagePath": "other",
-   *           "text": "其他"
-   *         }]
-   *       }
-   *     }
-   *     ```
+   ```json
+   {
+     "tabBar": {
+       "list": [{
+         "pagePath": "index",
+         "text": "首页"
+       },{
+         "pagePath": "other",
+         "text": "其他"
+       }]
+     }
+   }
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.switchTab({
-   *       url: '/index'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-navigate.html#wxswitchtabobject
+   ```javascript
+   Taro.switchTab({
+     url: '/index'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/route/wx.switchTab.html
    */
   function switchTab(OBJECT: switchTab.Param): Promise<any>
 
@@ -6968,10 +8013,25 @@ declare namespace Taro {
        * @default 1
        */
       delta?: number
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
-   * 关闭当前页面，返回上一页面或多级页面。可通过 [`getCurrentPages()`](https://developers.weixin.qq.com/miniprogram/dev/framework/app-service/page.html#getCurrentPages()) 获取当前的页面栈，决定需要返回几层。
+   * 关闭当前页面，返回上一页面或多级页面。可通过 [`getCurrentPages()`](https://developers.weixin.qq.com/miniprogram/dev/reference/api/getCurrentPages.html) 获取当前的页面栈，决定需要返回几层。
    *
    * **Tip：**
    *
@@ -6979,25 +8039,22 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 注意：调用 navigateTo 跳转时，调用该方法的页面会被加入堆栈，而 redirectTo 方法则不会。见下方示例代码
-   *
-   *     // 此处是A页面
-   *     Taro.navigateTo({
-   *       url: 'B?id=1'
-   *     })
-   *
-   *     // 此处是B页面
-   *     Taro.navigateTo({
-   *       url: 'C?id=1'
-   *     })
-   *
-   *     // 在C页面内 navigateBack，将返回A页面
-   *     Taro.navigateBack({
-   *       delta: 2
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-navigate.html#wxnavigatebackobject
+   ```javascript
+   // 注意：调用 navigateTo 跳转时，调用该方法的页面会被加入堆栈，而 redirectTo 方法则不会。见下方示例代码
+         // 此处是A页面
+   Taro.navigateTo({
+     url: 'B?id=1'
+   })
+         // 此处是B页面
+   Taro.navigateTo({
+     url: 'C?id=1'
+   })
+         // 在C页面内 navigateBack，将返回A页面
+   Taro.navigateBack({
+     delta: 2
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/route/wx.navigateBack.html
    */
   function navigateBack(OBJECT?: navigateBack.Param): Promise<any>
 
@@ -7042,21 +8099,21 @@ declare namespace Taro {
     }
   }
   /**
-   * 创建一个动画实例[animation](https://developers.weixin.qq.com/miniprogram/dev/api/api-animation.html#animation)。调用实例的方法来描述动画。最后通过动画实例的`export`方法导出动画数据传递给组件的`animation`属性。
+   * 创建一个动画实例[animation](https://developers.weixin.qq.com/miniprogram/dev/api/ui/animation/Animation.html)。调用实例的方法来描述动画。最后通过动画实例的`export`方法导出动画数据传递给组件的`animation`属性。
    *
    * **注意: `export` 方法每次调用后会清掉之前的动画操作**
    *
    * **timingFunction 有效值：**
    *
-   *     ```javascript
-   *     var animation = Taro.createAnimation({
-   *       transformOrigin: "50% 50%",
-   *       duration: 1000,
-   *       timingFunction: "ease",
-   *       delay: 0
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-animation.html#wxcreateanimationobject
+   ```javascript
+   var animation = Taro.createAnimation({
+     transformOrigin: "50% 50%",
+     duration: 1000,
+     timingFunction: "ease",
+     delay: 0
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/animation/wx.createAnimation.html
    */
   function createAnimation(OBJECT: createAnimation.Param): Animation
 
@@ -7204,15 +8261,22 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.pageScrollTo({
-   *       scrollTop: 0,
-   *       duration: 300
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/scroll.html#wxpagescrolltoobject
+   ```javascript
+   Taro.pageScrollTo({
+     scrollTop: 0,
+     duration: 300
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/scroll/wx.pageScrollTo.html
    */
   function pageScrollTo(OBJECT: pageScrollTo.Param): void
+
+  /**
+   * @since 微信小程序 2.7.0
+   *
+   * 创建离屏 canvas 实例
+   */
+  function createOffscreenCanvas(): OffscreenCanvas
 
   /**
    *
@@ -7221,7 +8285,7 @@ declare namespace Taro {
    * 创建 canvas 绘图上下文（指定 canvasId）。在自定义组件下，第二个参数传入组件实例this，以操作组件内 `<canvas/>` 组件
    *
    * **Tip**: 需要指定 canvasId，该绘图上下文只作用于对应的 `<canvas/>`
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/create-canvas-context.html#wxcreatecanvascontextcanvasid-this
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/wx.createCanvasContext.html
    */
   function createCanvasContext(canvasId: string, componentInstance: any): CanvasContext
 
@@ -7314,21 +8378,21 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.canvasToTempFilePath({
-   *       x: 100,
-   *       y: 200,
-   *       width: 50,
-   *       height: 50,
-   *       destWidth: 100,
-   *       destHeight: 100,
-   *       canvasId: 'myCanvas',
-   *       success: function(res) {
-   *         console.log(res.tempFilePath)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/temp-file.html#wxcanvastotempfilepathobject-this
+   ```javascript
+   Taro.canvasToTempFilePath({
+     x: 100,
+     y: 200,
+     width: 50,
+     height: 50,
+     destWidth: 100,
+     destHeight: 100,
+     canvasId: 'myCanvas',
+     success: function(res) {
+       console.log(res.tempFilePath)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/wx.canvasToTempFilePath.html
    */
   function canvasToTempFilePath(OBJECT: canvasToTempFilePath.Param0, instance?: any): void
 
@@ -7381,22 +8445,22 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.canvasGetImageData({
-   *       canvasId: 'myCanvas',
-   *       x: 0,
-   *       y: 0,
-   *       width: 100,
-   *       height: 100,
-   *       success(res) {
-   *         console.log(res.width) // 100
-   *         console.log(res.height) // 100
-   *         console.log(res.data instanceof Uint8ClampedArray) // true
-   *         console.log(res.data.length) // 100 * 100 * 4
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/get-image-data.html#wxcanvasgetimagedataobject
+   ```javascript
+   Taro.canvasGetImageData({
+     canvasId: 'myCanvas',
+     x: 0,
+     y: 0,
+     width: 100,
+     height: 100,
+     success(res) {
+       console.log(res.width) // 100
+       console.log(res.height) // 100
+       console.log(res.data instanceof Uint8ClampedArray) // true
+       console.log(res.data.length) // 100   100   4
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/wx.canvasGetImageData.html
    */
   function canvasGetImageData(OBJECT: canvasGetImageData.Param): Promise<canvasGetImageData.Promised>
 
@@ -7435,18 +8499,18 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const data = new Uint8ClampedArray([255, 0, 0, 1])
-   *     Taro.canvasPutImageData({
-   *       canvasId: 'myCanvas',
-   *       x: 0,
-   *       y: 0,
-   *       width: 1,
-   *       data: data,
-   *       success(res) {}
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/put-image-data.html#wxcanvasputimagedataobject
+   ```javascript
+   const data = new Uint8ClampedArray([255, 0, 0, 1])
+   Taro.canvasPutImageData({
+     canvasId: 'myCanvas',
+     x: 0,
+     y: 0,
+     width: 1,
+     data: data,
+     success(res) {}
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/canvas/wx.canvasPutImageData.html
    */
   function canvasPutImageData(OBJECT: canvasPutImageData.Param): Promise<any>
 
@@ -7466,10 +8530,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startPullDownRefresh()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/pulldown.html#wxstartpulldownrefreshobject
+   ```javascript
+   Taro.startPullDownRefresh()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/pull-down-refresh/wx.startPullDownRefresh.html
    */
   function startPullDownRefresh(OBJECT?: startPullDownRefresh.Param): Promise<startPullDownRefresh.Promised>
 
@@ -7478,14 +8542,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Page({
-   *       onPullDownRefresh: function(){
-   *         Taro.stopPullDownRefresh()
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-other.html
+   ```javascript
+   Page({
+     onPullDownRefresh: function(){
+       Taro.stopPullDownRefresh()
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui/pull-down-refresh/wx.stopPullDownRefresh.html
    */
   function stopPullDownRefresh(): void
 
@@ -7494,10 +8558,10 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.hideKeyboard()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ui-other.html
+   ```javascript
+   Taro.hideKeyboard()
+   ```
+   * @see https://developers.weixin.qq.com/minigame/dev/api/ui/keyboard/wx.hideKeyboard.html
    */
   function hideKeyboard(): void
 
@@ -7551,130 +8615,130 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Page({
-   *       queryMultipleNodes: function(){
-   *         var query = Taro.createSelectorQuery()
-   *         query.select('#the-id').boundingClientRect()
-   *         query.selectViewport().scrollOffset()
-   *         query.exec(function(res){
-   *           res[0].top       // #the-id节点的上边界坐标
-   *           res[1].scrollTop // 显示区域的竖直滚动位置
-   *         })
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Page({
+     queryMultipleNodes: function(){
+       var query = Taro.createSelectorQuery()
+       query.select('#the-id').boundingClientRect()
+       query.selectViewport().scrollOffset()
+       query.exec(function(res){
+         res[0].top       // #the-id节点的上边界坐标
+         res[1].scrollTop // 显示区域的竖直滚动位置
+       })
+     }
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Component({
-   *       queryMultipleNodes: function(){
-   *         var query = Taro.createSelectorQuery().in(this)
-   *         query.select('#the-id').boundingClientRect(function(res){
-   *           res.top // 这个组件内 #the-id 节点的上边界坐标
-   *         }).exec()
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Component({
+     queryMultipleNodes: function(){
+       var query = Taro.createSelectorQuery().in(this)
+       query.select('#the-id').boundingClientRect(function(res){
+         res.top // 这个组件内 #the-id 节点的上边界坐标
+       }).exec()
+     }
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Page({
-   *       getRect: function(){
-   *         Taro.createSelectorQuery().select('#the-id').boundingClientRect(function(rect){
-   *           rect.id      // 节点的ID
-   *           rect.dataset // 节点的dataset
-   *           rect.left    // 节点的左边界坐标
-   *           rect.right   // 节点的右边界坐标
-   *           rect.top     // 节点的上边界坐标
-   *           rect.bottom  // 节点的下边界坐标
-   *           rect.width   // 节点的宽度
-   *           rect.height  // 节点的高度
-   *         }).exec()
-   *       },
-   *       getAllRects: function(){
-   *         Taro.createSelectorQuery().selectAll('.a-class').boundingClientRect(function(rects){
-   *           rects.forEach(function(rect){
-   *             rect.id      // 节点的ID
-   *             rect.dataset // 节点的dataset
-   *             rect.left    // 节点的左边界坐标
-   *             rect.right   // 节点的右边界坐标
-   *             rect.top     // 节点的上边界坐标
-   *             rect.bottom  // 节点的下边界坐标
-   *             rect.width   // 节点的宽度
-   *             rect.height  // 节点的高度
-   *           })
-   *         }).exec()
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Page({
+     getRect: function(){
+       Taro.createSelectorQuery().select('#the-id').boundingClientRect(function(rect){
+         rect.id      // 节点的ID
+         rect.dataset // 节点的dataset
+         rect.left    // 节点的左边界坐标
+         rect.right   // 节点的右边界坐标
+         rect.top     // 节点的上边界坐标
+         rect.bottom  // 节点的下边界坐标
+         rect.width   // 节点的宽度
+         rect.height  // 节点的高度
+       }).exec()
+     },
+     getAllRects: function(){
+       Taro.createSelectorQuery().selectAll('.a-class').boundingClientRect(function(rects){
+         rects.forEach(function(rect){
+           rect.id      // 节点的ID
+           rect.dataset // 节点的dataset
+           rect.left    // 节点的左边界坐标
+           rect.right   // 节点的右边界坐标
+           rect.top     // 节点的上边界坐标
+           rect.bottom  // 节点的下边界坐标
+           rect.width   // 节点的宽度
+           rect.height  // 节点的高度
+         })
+       }).exec()
+     }
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Page({
-   *       getScrollOffset: function(){
-   *         Taro.createSelectorQuery().selectViewport().scrollOffset(function(res){
-   *           res.id      // 节点的ID
-   *           res.dataset // 节点的dataset
-   *           res.scrollLeft // 节点的水平滚动位置
-   *           res.scrollTop  // 节点的竖直滚动位置
-   *         }).exec()
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Page({
+     getScrollOffset: function(){
+       Taro.createSelectorQuery().selectViewport().scrollOffset(function(res){
+         res.id      // 节点的ID
+         res.dataset // 节点的dataset
+         res.scrollLeft // 节点的水平滚动位置
+         res.scrollTop  // 节点的竖直滚动位置
+       }).exec()
+     }
+   })
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Page({
-   *       getFields: function(){
-   *         Taro.createSelectorQuery().select('#the-id').fields({
-   *           dataset: true,
-   *           size: true,
-   *           scrollOffset: true,
-   *           properties: ['scrollX', 'scrollY']
-   *         }, function(res){
-   *           res.dataset    // 节点的dataset
-   *           res.width      // 节点的宽度
-   *           res.height     // 节点的高度
-   *           res.scrollLeft // 节点的水平滚动位置
-   *           res.scrollTop  // 节点的竖直滚动位置
-   *           res.scrollX    // 节点 scroll-x 属性的当前值
-   *           res.scrollY    // 节点 scroll-x 属性的当前值
-   *         }).exec()
-   *       }
-   *     })
-   *     ```
+   ```javascript
+   Page({
+     getFields: function(){
+       Taro.createSelectorQuery().select('#the-id').fields({
+         dataset: true,
+         size: true,
+         scrollOffset: true,
+         properties: ['scrollX', 'scrollY']
+       }, function(res){
+         res.dataset    // 节点的dataset
+         res.width      // 节点的宽度
+         res.height     // 节点的高度
+         res.scrollLeft // 节点的水平滚动位置
+         res.scrollTop  // 节点的竖直滚动位置
+         res.scrollX    // 节点 scroll-x 属性的当前值
+         res.scrollY    // 节点 scroll-x 属性的当前值
+       }).exec()
+     }
+   })
+   ```
    */
   interface nodesRef {
-    boundingClientRect: (callback?: clientRectCallback) => nodesRef;
-    scrollOffset: (callback?: scrollCallback) => nodesRef;
-    fields: (fields: fieldsObject, callback?: fieldCallback) => nodesRef;
-    exec: (callback?: execCallback) => void;
+    boundingClientRect: (callback?: clientRectCallback) => nodesRef
+    scrollOffset: (callback?: scrollCallback) => nodesRef
+    fields: (fields: fieldsObject, callback?: fieldCallback) => nodesRef
+    exec: (callback?: execCallback) => void
   }
 
   interface baseElement {
-    id: string,
-    dataset: object,
+    id: string
+    dataset: object
   }
 
   interface rectElement {
-    left: number,
-    right: number,
-    top: number,
-    bottom: number,
+    left: number
+    right: number
+    top: number
+    bottom: number
   }
 
   interface sizeElement {
-    width: number,
-    height: number,
+    width: number
+    height: number
   }
 
   interface scrollElement {
-    scrollLeft: number,
+    scrollLeft: number
     scrollTop: number
   }
   interface clientRectElement extends baseElement, rectElement, sizeElement {}
@@ -7682,19 +8746,18 @@ declare namespace Taro {
   interface scrollOffsetElement extends baseElement, scrollElement {}
 
   interface fieldsObject {
-    id?:boolean,
-    dataset?:boolean,
-    rect?:boolean,
-    size?:boolean,
-    scrollOffset?:boolean,
-    properties?: string[],
-    computedStyle?:string[],
+    id?: boolean
+    dataset?: boolean
+    rect?: boolean
+    size?: boolean
+    scrollOffset?: boolean
+    properties?: string[]
+    computedStyle?: string[]
   }
 
   interface fieldElement extends baseElement, rectElement, sizeElement {
-    [key:string]: any
+    [key: string]: any
   }
-
 
   type execObject = clientRectElement & scrollOffsetElement & fieldElement
   type clientRectCallback = (rect: clientRectElement | clientRectElement[]) => void
@@ -7750,16 +8813,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     if(Taro.getExtConfig) {
-   *       Taro.getExtConfig({
-   *         success: function (res) {
-   *           console.log(res.extConfig)
-   *         }
-   *       })
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ext-api.html#wxgetextconfigobject
+   ```javascript
+   if(Taro.getExtConfig) {
+     Taro.getExtConfig({
+       success: function (res) {
+         console.log(res.extConfig)
+       }
+     })
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ext/wx.getExtConfig.html
    */
   function getExtConfig(OBJECT?: getExtConfig.Param): Promise<getExtConfig.Promised>
 
@@ -7782,13 +8845,59 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     let extConfig = Taro.getExtConfigSync? Taro.getExtConfigSync(): {}
-   *     console.log(extConfig)
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ext-api.html#wxgetextconfigsync
+   ```javascript
+   let extConfig = Taro.getExtConfigSync? Taro.getExtConfigSync(): {}
+   console.log(extConfig)
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/ext/wx.getExtConfigSync.html
    */
   function getExtConfigSync(): getExtConfigSync.Return
+
+  namespace getLogManager {
+    type Param = {
+      /**
+       * @since 2.3.2
+       *
+       * 取值为0/1，取值为0表示是否会把 App、Page 的生命周期函数和 wx 命名空间下的函数调用写入日志，取值为1则不会。默认值是 0
+       */
+      level?: number
+    }
+    type Return = {
+      /**
+       * 写 debug 日志
+       */
+      debug(...args: any[]): void
+      /**
+       * 写 info 日志
+       */
+      info(...args: any[]): void
+      /**
+       * 写 log 日志
+       */
+      log(...args: any[]): void
+      /**
+       * 写 warn 日志
+       */
+      warn(...args: any[]): void
+    }
+  }
+  /**
+   * @since 2.1.0
+   *
+   * 获取日志管理器对象。
+   *
+   * **示例代码：**
+   *
+   ```javascript
+   const logger = Taro.getLogManager({level: 1})
+   logger.log({str: 'hello world'}, 'basic log', 100, [1, 2, 3])
+   logger.info({str: 'hello world'}, 'info log', 100, [1, 2, 3])
+   logger.debug({str: 'hello world'}, 'debug log', 100, [1, 2, 3])
+   logger.warn({str: 'hello world'}, 'warn log', 100, [1, 2, 3])
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/debug/wx.getLogManager.html
+   */
+  function getLogManager(OBJECT?: getLogManager.Param): getLogManager.Return
 
   namespace login {
     type Promised = {
@@ -7807,9 +8916,9 @@ declare namespace Taro {
        *
        * @since 1.9.90
        */
-      timeout?: number,
-      success?: ParamPropSuccess,
-      fail?: ParamPropFail,
+      timeout?: number
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
       complete?: ParamPropComplete
     }
     /**
@@ -7830,29 +8939,29 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     //app.js
-   *     App({
-   *       onLaunch: function() {
-   *         Taro.login({
-   *           success: function(res) {
-   *             if (res.code) {
-   *               //发起网络请求
-   *               Taro.request({
-   *                 url: 'https://test.com/onLogin',
-   *                 data: {
-   *                   code: res.code
-   *                 }
-   *               })
-   *             } else {
-   *               console.log('登录失败！' + res.errMsg)
-   *             }
-   *           }
-   *         });
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-login.html#wxloginobject
+   ```javascript
+   //app.js
+   App({
+     onLaunch: function() {
+       Taro.login({
+         success: function(res) {
+           if (res.code) {
+             //发起网络请求
+             Taro.request({
+               url: 'https://test.com/onLogin',
+               data: {
+                 code: res.code
+               }
+             })
+           } else {
+             console.log('登录失败！' + res.errMsg)
+           }
+         }
+       });
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/login/wx.login.html
    */
   function login(OBJECT?: login.Param): Promise<login.Promised>
 
@@ -7864,19 +8973,19 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.checkSession({
-   *       success: function(){
-   *         //session_key 未过期，并且在本生命周期一直有效
-   *       },
-   *       fail: function(){
-   *         // session_key 已经失效，需要重新执行登录流程
-   *         Taro.login() //重新登录
-   *         ....
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#wxchecksessionobject
+   ```javascript
+   Taro.checkSession({
+     success: function(){
+       //session_key 未过期，并且在本生命周期一直有效
+     },
+     fail: function(){
+       // session_key 已经失效，需要重新执行登录流程
+       Taro.login() //重新登录
+       ....
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/login/wx.checkSession.html
    */
   function checkSession(OBJECT?: checkSession.Param): Promise<any>
 
@@ -7889,7 +8998,7 @@ declare namespace Taro {
     }
     type Param = {
       /**
-       * 需要获取权限的scope，详见 [scope 列表](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html#scope-列表)
+       * 需要获取权限的scope，详见 [scope 列表](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html#scope-列表)
        */
       scope: string
     }
@@ -7901,23 +9010,23 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 可以通过 Taro.getSetting 先查询一下用户是否授权了 "scope.record" 这个 scope
-   *     Taro.getSetting({
-   *         success(res) {
-   *             if (!res.authSetting['scope.record']) {
-   *                 Taro.authorize({
-   *                     scope: 'scope.record',
-   *                     success() {
-   *                         // 用户已经同意小程序使用录音功能，后续调用 Taro.startRecord 接口不会弹窗询问
-   *                         Taro.startRecord()
-   *                     }
-   *                 })
-   *             }
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/authorize.html#wxauthorizeobject
+   ```javascript
+   // 可以通过 Taro.getSetting 先查询一下用户是否授权了 "scope.record" 这个 scope
+   Taro.getSetting({
+       success(res) {
+           if (!res.authSetting['scope.record']) {
+               Taro.authorize({
+                   scope: 'scope.record',
+                   success() {
+                       // 用户已经同意小程序使用录音功能，后续调用 Taro.startRecord 接口不会弹窗询问
+                       Taro.startRecord()
+                   }
+               })
+           }
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/authorize/wx.authorize.html
    */
   function authorize(OBJECT: authorize.Param): Promise<authorize.Promised>
 
@@ -7932,17 +9041,21 @@ declare namespace Taro {
        */
       rawData: string
       /**
-       * 使用 sha1( rawData + sessionkey ) 得到字符串，用于校验用户信息，参考文档 [signature](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html)。
+       * 使用 sha1( rawData + sessionkey ) 得到字符串，用于校验用户信息，参考文档 [signature](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)。
        */
       signature: string
       /**
-       * 包括敏感数据在内的完整用户信息的加密数据，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * 包括敏感数据在内的完整用户信息的加密数据，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        */
       encryptedData: string
       /**
-       * 加密算法的初始向量，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * 加密算法的初始向量，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        */
       iv: string
+      /**
+       * 敏感数据对应的云 ID，开通[云开发](https://developers.weixin.qq.com/miniprogram/dev/wxcloud/basis/getting-started.html)的小程序才会返回，可通过云调用直接获取开放数据，详细见[云调用直接获取开放数据](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html#method-cloud)
+       */
+      cloudID: string
     }
     /**
      * 用户信息对象，不包含 openid 等敏感信息
@@ -7959,7 +9072,7 @@ declare namespace Taro {
       /**
        * 用户的性别，值为1时是男性，值为2时是女性，值为0时是未知
        */
-      gender: string
+      gender: 0 | 1 | 2
       /**
        * 用户所在城市
        */
@@ -7996,49 +9109,64 @@ declare namespace Taro {
        * @since 1.9.90
        */
       timeout?: number
+      success?: ParamPropSuccess
+      fail?: ParamPropFail
+      complete?: ParamPropComplete
     }
+    /**
+     * 获取用户信息接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: Promised) => void
+    /**
+     * 获取用户信息接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: Promised) => void
+    /**
+     * 获取用户信息接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = (err: Promised) => void
   }
   /**
-   * 获取用户信息，withCredentials 为 true 时需要先调用 [Taro.login](https://developers.weixin.qq.com/miniprogram/dev/api/api-login.html#wxloginobject) 接口。
+   * 获取用户信息，withCredentials 为 true 时需要先调用 [Taro.login](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/login/wx.login.html) 接口。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.userInfo
-   *
-   * **示例代码：**
-   *
-   *     ```javascript
-   *     Taro.getUserInfo({
-   *       success: function(res) {
-   *         var userInfo = res.userInfo
-   *         var nickName = userInfo.nickName
-   *         var avatarUrl = userInfo.avatarUrl
-   *         var gender = userInfo.gender //性别 0：未知、1：男、2：女
-   *         var province = userInfo.province
-   *         var city = userInfo.city
-   *         var country = userInfo.country
-   *       }
-   *     })
-   *     ```
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.userInfo
    *
    * **示例代码：**
    *
-   *     ```json
-   *     {
-   *         "openId": "OPENID",
-   *         "nickName": "NICKNAME",
-   *         "gender": GENDER,
-   *         "city": "CITY",
-   *         "province": "PROVINCE",
-   *         "country": "COUNTRY",
-   *         "avatarUrl": "AVATARURL",
-   *         "unionId": "UNIONID",
-   *         "watermark":
-   *         {
-   *             "appid":"APPID",
-   *         "timestamp":TIMESTAMP
-   *         }
-   *     }
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open.html#wxgetuserinfoobject
+   ```javascript
+   Taro.getUserInfo({
+     success: function(res) {
+       var userInfo = res.userInfo
+       var nickName = userInfo.nickName
+       var avatarUrl = userInfo.avatarUrl
+       var gender = userInfo.gender //性别 0：未知、1：男、2：女
+       var province = userInfo.province
+       var city = userInfo.city
+       var country = userInfo.country
+     }
+   })
+   ```
+   *
+   * **示例代码：**
+   *
+   ```json
+   {
+       "openId": "OPENID",
+       "nickName": "NICKNAME",
+       "gender": GENDER,
+       "city": "CITY",
+       "province": "PROVINCE",
+       "country": "COUNTRY",
+       "avatarUrl": "AVATARURL",
+       "unionId": "UNIONID",
+       "watermark":
+       {
+           "appid":"APPID",
+       "timestamp":TIMESTAMP
+       }
+   }
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/user-info/wx.getUserInfo.html
    */
   function getUserInfo(OBJECT?: getUserInfo.Param): Promise<getUserInfo.Promised>
 
@@ -8103,7 +9231,31 @@ declare namespace Taro {
        * 签名,具体签名方案参见[小程序支付接口文档](https://pay.weixin.qq.com/wiki/doc/api/wxa/wxa_api.php?chapter=7_7&index=3);
        */
       paySign: string
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
     }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = (res: any) => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
   }
   /**
    * 发起微信支付。
@@ -8122,29 +9274,34 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.requestPayment({
-   *        'timeStamp': '',
-   *        'nonceStr': '',
-   *        'package': '',
-   *        'signType': 'MD5',
-   *        'paySign': '',
-   *        'success':function(res){
-   *        },
-   *        'fail':function(res){
-   *        }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/api-pay.html#wxrequestpaymentobject
+   ```javascript
+   Taro.requestPayment({
+      'timeStamp': '',
+      'nonceStr': '',
+      'package': '',
+      'signType': 'MD5',
+      'paySign': '',
+      'success':function(res){
+      },
+      'fail':function(res){
+      }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/payment/wx.requestPayment.html
    */
   function requestPayment(OBJECT: requestPayment.Param): Promise<any>
 
   namespace showShareMenu {
     type Param = {
       /**
-       * 是否使用带 shareTicket 的转发[详情](https://developers.weixin.qq.com/miniprogram/dev/api/share.html#获取更多转发信息)
+       * 是否使用带 shareTicket 的转发[详情](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/share.html)
        */
-      withShareTicket?: boolean
+      withShareTicket?: boolean,
+      /**
+      * QQ小程序分享功能，支持分享到QQ、QQ空间、微信好友、微信朋友圈
+      * 支持的值： ['qq', 'qzone', 'wechatFriends', 'wechatMoment']
+      */
+      showShareItems?: string[]
     }
   }
   /**
@@ -8154,12 +9311,12 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.showShareMenu({
-   *       withShareTicket: true
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share.html#wxshowsharemenuobject
+   ```javascript
+   Taro.showShareMenu({
+     withShareTicket: true
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share/wx.showShareMenu.html
    */
   function showShareMenu(OBJECT?: showShareMenu.Param): Promise<any>
 
@@ -8173,17 +9330,17 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.hideShareMenu()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share.html#wxhidesharemenuobject
+   ```javascript
+   Taro.hideShareMenu()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share/wx.hideShareMenu.html
    */
   function hideShareMenu(OBJECT?: hideShareMenu.Param): Promise<any>
 
   namespace updateShareMenu {
     type Param = {
       /**
-       * 是否使用带 shareTicket 的转发[详情](https://developers.weixin.qq.com/miniprogram/dev/api/share.html#获取更多转发信息)
+       * 是否使用带 shareTicket 的转发[详情](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/share.html)
        */
       withShareTicket?: boolean
     }
@@ -8195,14 +9352,14 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.updateShareMenu({
-   *       withShareTicket: true,
-   *       success() {
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share.html#wxupdatesharemenuobject
+   ```javascript
+   Taro.updateShareMenu({
+     withShareTicket: true,
+     success() {
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share/wx.updateShareMenu.html
    */
   function updateShareMenu(OBJECT?: updateShareMenu.Param): Promise<any>
 
@@ -8213,7 +9370,7 @@ declare namespace Taro {
        */
       errMsg: string
       /**
-       * 包括敏感数据在内的完整转发信息的加密数据，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * 包括敏感数据在内的完整转发信息的加密数据，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        *
        * **encryptedData 解密后为一个 JSON 结构，包含字段如下：**
        *
@@ -8225,9 +9382,13 @@ declare namespace Taro {
        */
       encryptedData: string
       /**
-       * 加密算法的初始向量，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * 加密算法的初始向量，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        */
       iv: string
+      /**
+       * 敏感数据对应的云 ID，开通云开发的小程序才会返回，可通过云调用直接获取开放数据，详细见[云调用直接获取开放数据](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html#method-cloud)
+       */
+      cloudID: string
     }
     type Param = {
       /**
@@ -8246,7 +9407,7 @@ declare namespace Taro {
    * @since 1.1.0
    *
    * 获取转发详细信息
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share.html#wxgetshareinfoobject
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/share/wx.getShareInfo.html
    */
   function getShareInfo(OBJECT: getShareInfo.Param): Promise<getShareInfo.Promised>
 
@@ -8296,42 +9457,42 @@ declare namespace Taro {
    *
    * 调起用户编辑收货地址原生界面，并在编辑完成后返回用户选择的地址。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.address
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.address
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.chooseAddress({
-   *       success: function (res) {
-   *         console.log(res.userName)
-   *         console.log(res.postalCode)
-   *         console.log(res.provinceName)
-   *         console.log(res.cityName)
-   *         console.log(res.countyName)
-   *         console.log(res.detailInfo)
-   *         console.log(res.nationalCode)
-   *         console.log(res.telNumber)
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/address.html#wxchooseaddressobject
+   ```javascript
+   Taro.chooseAddress({
+     success: function (res) {
+       console.log(res.userName)
+       console.log(res.postalCode)
+       console.log(res.provinceName)
+       console.log(res.cityName)
+       console.log(res.countyName)
+       console.log(res.detailInfo)
+       console.log(res.nationalCode)
+       console.log(res.telNumber)
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/address/wx.chooseAddress.html
    */
   function chooseAddress(OBJECT?: chooseAddress.Param): Promise<chooseAddress.Promised>
 
   namespace addCard {
     type Promised = {
       /**
-       * 卡券添加结果列表，列表内对象说明请详见[返回对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/card.html#返回对象说明)
+       * 卡券添加结果列表，列表内对象说明请详见[返回对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.addCard.html)
        */
       cardList: PromisedPropCardList
     }
     /**
-     * 卡券添加结果列表，列表内对象说明请详见[返回对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/card.html#返回对象说明)
+     * 卡券添加结果列表，列表内对象说明请详见[返回对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.addCard.html)
      */
     type PromisedPropCardList = PromisedPropCardListItem[]
     type PromisedPropCardListItem = {
       /**
-       * 加密 code，为用户领取到卡券的code加密后的字符串，解密请参照：[code 解码接口](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1451025239)
+       * 加密 code，为用户领取到卡券的code加密后的字符串，解密请参照：[code 解码接口](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1499332673_Unm7V)
        */
       code: string
       /**
@@ -8349,12 +9510,12 @@ declare namespace Taro {
     }
     type Param = {
       /**
-       * 需要添加的卡券列表，列表内对象说明请参见[请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/card.html#请求对象说明)
+       * 需要添加的卡券列表，列表内对象说明请参见[请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.addCard.html)
        */
       cardList: ParamPropCardList
     }
     /**
-     * 需要添加的卡券列表，列表内对象说明请参见[请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/card.html#请求对象说明)
+     * 需要添加的卡券列表，列表内对象说明请参见[请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.addCard.html)
      */
     type ParamPropCardList = ParamPropCardListItem[]
     type ParamPropCardListItem = {
@@ -8397,35 +9558,35 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.addCard({
-   *       cardList: [
-   *         {
-   *           cardId: '',
-   *           cardExt: '{"code": "", "openid": "", "timestamp": "", "signature":""}'
-   *         }, {
-   *           cardId: '',
-   *           cardExt: '{"code": "", "openid": "", "timestamp": "", "signature":""}'
-   *         }
-   *       ],
-   *       success: function(res) {
-   *         console.log(res.cardList) // 卡券添加结果
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/card.html#wxaddcardobject
+   ```javascript
+   Taro.addCard({
+     cardList: [
+       {
+         cardId: '',
+         cardExt: '{"code": "", "openid": "", "timestamp": "", "signature":""}'
+       }, {
+         cardId: '',
+         cardExt: '{"code": "", "openid": "", "timestamp": "", "signature":""}'
+       }
+     ],
+     success: function(res) {
+       console.log(res.cardList) // 卡券添加结果
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.addCard.html
    */
   function addCard(OBJECT: addCard.Param): Promise<addCard.Promised>
 
   namespace openCard {
     type Param = {
       /**
-       * 需要打开的卡券列表，列表内参数详见[openCard 请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/card.html#opencard-请求对象说明)
+       * 需要打开的卡券列表，列表内参数详见[openCard 请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.openCard.html)
        */
       cardList: ParamPropCardList
     }
     /**
-     * 需要打开的卡券列表，列表内参数详见[openCard 请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/card.html#opencard-请求对象说明)
+     * 需要打开的卡券列表，列表内参数详见[openCard 请求对象说明](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.openCard.html)
      */
     type ParamPropCardList = ParamPropCardListItem[]
     type ParamPropCardListItem = {
@@ -8434,7 +9595,7 @@ declare namespace Taro {
        */
       cardId: string
       /**
-       * 由 addCard 的返回对象中的加密 code 通过解密后得到，解密请参照：[code 解码接口](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1451025239)
+       * 由 addCard 的返回对象中的加密 code 通过解密后得到，解密请参照：[code 解码接口](https://mp.weixin.qq.com/wiki?t=resource/res_main&id=mp1499332673_Unm7V)
        */
       code: string
     }
@@ -8451,29 +9612,29 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.openCard({
-   *       cardList: [
-   *         {
-   *           cardId: '',
-   *           code: ''
-   *         }, {
-   *           cardId: '',
-   *           code: ''
-   *         }
-   *       ],
-   *       success: function(res) {
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/card.html#wxopencardobject
+   ```javascript
+   Taro.openCard({
+     cardList: [
+       {
+         cardId: '',
+         code: ''
+       }, {
+         cardId: '',
+         code: ''
+       }
+     ],
+     success: function(res) {
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/card/wx.openCard.html
    */
   function openCard(OBJECT: openCard.Param): Promise<any>
 
   namespace openSetting {
     type Promised = {
       /**
-       * 用户授权结果，其中 key 为 scope 值，value 为 Bool 值，表示用户是否允许授权，详见 [scope 列表](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html#scope-列表)
+       * 用户授权结果，其中 key 为 scope 值，value 为 Bool 值，表示用户是否允许授权，详见 [scope 列表](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html)
        */
       authSetting: any
     }
@@ -8488,26 +9649,24 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.openSetting({
-   *       success: (res) => {
-   *
-   *          // res.authSetting = {
-   *          //   "scope.userInfo": true,
-   *          //   "scope.userLocation": true
-   *          // }
-   *
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/setting.html#wxopensettingobject
+   ```javascript
+   Taro.openSetting({
+     success: (res) => {
+              // res.authSetting = {
+        //   "scope.userInfo": true,
+        //   "scope.userLocation": true
+        // }
+           }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/setting/wx.openSetting.html
    */
   function openSetting(OBJECT?: openSetting.Param): Promise<openSetting.Promised>
 
   namespace getSetting {
     type Promised = {
       /**
-       * 用户授权结果，其中 key 为 scope 值，value 为 Bool 值，表示用户是否允许授权，详见 [scope 列表](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html#scope-列表)
+       * 用户授权结果，其中 key 为 scope 值，value 为 Bool 值，表示用户是否允许授权，详见 [scope 列表](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html)
        */
       authSetting: any
     }
@@ -8522,19 +9681,17 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getSetting({
-   *       success: (res) => {
-   *
-   *          // res.authSetting = {
-   *          //   "scope.userInfo": true,
-   *          //   "scope.userLocation": true
-   *          // }
-   *
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/setting.html#wxgetsettingobject
+   ```javascript
+   Taro.getSetting({
+     success: (res) => {
+              // res.authSetting = {
+        //   "scope.userInfo": true,
+        //   "scope.userLocation": true
+        // }
+           }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/setting/wx.getSetting.html
    */
   function getSetting(OBJECT?: getSetting.Param): Promise<getSetting.Promised>
 
@@ -8545,11 +9702,11 @@ declare namespace Taro {
        */
       errMsg: string
       /**
-       * 包括敏感数据在内的完整用户信息的加密数据，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * 包括敏感数据在内的完整用户信息的加密数据，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        *
        * **encryptedData：**
        *
-       * encryptedData 解密后为以下 json 结构，详见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * encryptedData 解密后为以下 json 结构，详见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        *
        *   属性                       |  类型          |  说明
        * -----------------------------|----------------|-------------------
@@ -8559,9 +9716,13 @@ declare namespace Taro {
        */
       encryptedData: string
       /**
-       * 加密算法的初始向量，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/api/signature.html#加密数据解密算法)
+       * 加密算法的初始向量，详细见[加密数据解密算法](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html)
        */
       iv: string
+      /**
+       * 敏感数据对应的云 ID，开通云开发的小程序才会返回，可通过云调用直接获取开放数据，详细见[云调用直接获取开放数据](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html#method-cloud)
+       */
+      cloudID: string
     }
     type Param = {
       /**
@@ -8575,20 +9736,20 @@ declare namespace Taro {
   /**
    * @since 1.2.0
    *
-   * 获取用户过去三十天微信运动步数，需要先调用 [Taro.login](https://developers.weixin.qq.com/miniprogram/dev/api/api-login.html#wxloginobject) 接口。
+   * 获取用户过去三十天微信运动步数，需要先调用 [Taro.login](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/login/wx.login.html) 接口。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.werun
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.werun
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.getWeRunData({
-   *         success(res) {
-   *             const encryptedData = res.encryptedData
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/we-run.html#wxgetwerundataobject
+   ```javascript
+   Taro.getWeRunData({
+       success(res) {
+           const encryptedData = res.encryptedData
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/werun/wx.getWeRunData.html
    */
   function getWeRunData(OBJECT?: getWeRunData.Param): Promise<getWeRunData.Promised>
 
@@ -8633,20 +9794,20 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.navigateToMiniProgram({
-   *       appId: '',
-   *       path: 'pages/index/index?id=123',
-   *       extraData: {
-   *         foo: 'bar'
-   *       },
-   *       envVersion: 'develop',
-   *       success(res) {
-   *         // 打开成功
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/navigateToMiniProgram.html#wxnavigatetominiprogramobject
+   ```javascript
+   Taro.navigateToMiniProgram({
+     appId: '',
+     path: 'pages/index/index?id=123',
+     extraData: {
+       foo: 'bar'
+     },
+     envVersion: 'develop',
+     success(res) {
+       // 打开成功
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/miniprogram-navigate/wx.navigateToMiniProgram.html
    */
   function navigateToMiniProgram(OBJECT: navigateToMiniProgram.Param): Promise<navigateToMiniProgram.Promised>
 
@@ -8673,19 +9834,55 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.navigateBackMiniProgram({
-   *       extraData: {
-   *         foo: 'bar'
-   *       },
-   *       success(res) {
-   *         // 返回成功
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/navigateBackMiniProgram.html#wxnavigatebackminiprogramobject
+   ```javascript
+   Taro.navigateBackMiniProgram({
+     extraData: {
+       foo: 'bar'
+     },
+     success(res) {
+       // 返回成功
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/miniprogram-navigate/wx.navigateBackMiniProgram.html
    */
   function navigateBackMiniProgram(OBJECT?: navigateBackMiniProgram.Param): Promise<navigateBackMiniProgram.Promised>
+
+  namespace chooseInvoice {
+    type Promised = {
+      /**
+       * 所选发票卡券的 cardId
+       */
+      cardId: string
+      /**
+       * 所选发票卡券的加密 code，报销方可以通过 cardId 和 encryptCode 获得报销发票的信息。
+       */
+      encryptCode: string
+      /**
+       * 发票方的 appId
+       */
+      publisherAppId: string
+    }
+    type Param = {}
+  }
+  /**
+   * @since 1.5.0
+   *
+   * 选择用户的发票抬头。
+   *
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.invoice
+   *
+   * **示例代码：**
+   *
+   ```javascript
+   Taro.chooseInvoice({
+     success(res) {
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/invoice/wx.chooseInvoice.html
+   */
+  function chooseInvoice(OBJECT?: chooseInvoice.Param): Promise<chooseInvoice.Promised>
 
   namespace chooseInvoiceTitle {
     type Promised = {
@@ -8729,17 +9926,17 @@ declare namespace Taro {
    *
    * 选择用户的发票抬头。
    *
-   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/api/authorize-index.html) scope.invoiceTitle
+   * 需要[用户授权](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/authorize.html) scope.invoiceTitle
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.chooseInvoiceTitle({
-   *       success(res) {
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/chooseInvoiceTitle.html#wxchooseinvoicetitleobject
+   ```javascript
+   Taro.chooseInvoiceTitle({
+     success(res) {
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/invoice/wx.chooseInvoiceTitle.html
    */
   function chooseInvoiceTitle(OBJECT?: chooseInvoiceTitle.Param): Promise<chooseInvoiceTitle.Promised>
 
@@ -8771,16 +9968,16 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.checkIsSupportSoterAuthentication({
-   *         success(res) {
-   *             // res.supportMode = [] 不具备任何被SOTER支持的生物识别方式
-   *             // res.supportMode = ['fingerPrint'] 只支持指纹识别
-   *             // res.supportMode = ['fingerPrint', 'facial'] 支持指纹识别和人脸识别
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/checkIsSupportSoterAuthentication.html#wxcheckissupportsoterauthenticationobject
+   ```javascript
+   Taro.checkIsSupportSoterAuthentication({
+       success(res) {
+           // res.supportMode = [] 不具备任何被SOTER支持的生物识别方式
+           // res.supportMode = ['fingerPrint'] 只支持指纹识别
+           // res.supportMode = ['fingerPrint', 'facial'] 支持指纹识别和人脸识别
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/soter/wx.checkIsSupportSoterAuthentication.html
    */
   function checkIsSupportSoterAuthentication(OBJECT?: checkIsSupportSoterAuthentication.Param): Promise<checkIsSupportSoterAuthentication.Promised>
 
@@ -8853,32 +10050,32 @@ declare namespace Taro {
    *
    * **resultJSON 说明：**
    *
-   *     ```json
-   *     {
-   *         "raw":"msg",
-   *         "fid":"2",
-   *         "counter":123,
-   *         "tee_n":"TEE Name",
-   *         "tee_v":"TEE Version",
-   *         "fp_n":"Fingerprint Sensor Name",
-   *         "fp_v":"Fingerprint Sensor Version",
-   *         "cpu_id":"CPU Id",
-   *         "uid":"21"
-   *     }
-   *     ```
+   ```json
+   {
+       "raw":"msg",
+       "fid":"2",
+       "counter":123,
+       "tee_n":"TEE Name",
+       "tee_v":"TEE Version",
+       "fp_n":"Fingerprint Sensor Name",
+       "fp_v":"Fingerprint Sensor Version",
+       "cpu_id":"CPU Id",
+       "uid":"21"
+   }
+   ```
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.startSoterAuthentication({
-   *       requestAuthModes: ['fingerPrint'],
-   *       challenge: '123456',
-   *       authContent: '请用指纹解锁',
-   *       success(res) {
-   *       }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/startSoterAuthentication.html#wxstartsoterauthenticationobject
+   ```javascript
+   Taro.startSoterAuthentication({
+     requestAuthModes: ['fingerPrint'],
+     challenge: '123456',
+     authContent: '请用指纹解锁',
+     success(res) {
+     }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/soter/wx.startSoterAuthentication.html
    */
   function startSoterAuthentication(OBJECT: startSoterAuthentication.Param): Promise<startSoterAuthentication.Promised>
 
@@ -8915,69 +10112,123 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.checkIsSoterEnrolledInDevice({
-   *         checkAuthMode: 'fingerPrint',
-   *         success(res) {
-   *             console.log(res.isEnrolled)
-   *         }
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/checkIsSoterEnrolledInDevice.html#wxcheckissoterenrolledindeviceobject
+   ```javascript
+   Taro.checkIsSoterEnrolledInDevice({
+       checkAuthMode: 'fingerPrint',
+       success(res) {
+           console.log(res.isEnrolled)
+       }
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/soter/wx.checkIsSoterEnrolledInDevice.html
    */
   function checkIsSoterEnrolledInDevice(OBJECT: checkIsSoterEnrolledInDevice.Param): Promise<checkIsSoterEnrolledInDevice.Promised>
+
+  /**
+   * @since 2.0.1
+   *
+   * 自定义业务数据监控上报接口。
+   *
+   * **示例代码：**
+   *
+   ```javascript
+   Taro.reportMonitor('1', 1)
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/report/wx.reportMonitor.html
+   */
+  function reportMonitor(monitorId: string, count: number): void
 
   /**
    * 自定义分析数据上报接口。使用前，需要在小程序管理后台自定义分析中新建事件，配置好事件名与字段。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     Taro.reportAnalytics('purchase', {
-   *       price: 120,
-   *       color: 'red'
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/analysis-report.html#wxreportanalyticseventname-data
+   ```javascript
+   Taro.reportAnalytics('purchase', {
+     price: 120,
+     color: 'red'
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/data-analysis/wx.reportAnalytics.html
    */
   function reportAnalytics(eventName: string, data: any): void
+
+  /**
+   * @since 2.2.2
+   *
+   * 获取当前帐号信息
+   *
+   * **示例代码：**
+   *
+   ```javascript
+   const accountInfo = wx.getAccountInfoSync();
+   console.log(accountInfo.miniProgram.appId) // 小程序 appId
+   console.log(accountInfo.plugin.appId) // 插件 appId
+   console.log(accountInfo.plugin.version) // 插件版本号， 'a.b.c' 这样的形式
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/open-api/account-info/wx.getAccountInfoSync.html
+   */
+  function getAccountInfoSync(): getAccountInfoSync.Return
+
+  namespace getAccountInfoSync {
+    interface Return {
+      /**
+       * 小程序帐号信息
+       */
+      miniProgram: {
+        /**
+         * 小程序 appId
+         */
+        appId: string
+      }
+      /**
+       * 插件帐号信息（仅在插件中调用时包含这一项）
+       */
+      plugin?: {
+        /**
+         * 插件 appId
+         */
+        appId: string
+        /**
+         * 插件版本号
+         */
+        version: string
+      }
+    }
+  }
 
   /**
    * @since 1.9.90
    *
    * 获取**全局唯一**的版本更新管理器，用于管理小程序更新。
    *
-   * 关于小程序的更新机制，可以查看 [运行机制](https://developers.weixin.qq.com/miniprogram/dev/framework/operating-mechanism.html) 文档。
+   * 关于小程序的更新机制，可以查看 [运行机制](https://developers.weixin.qq.com/miniprogram/dev/framework/runtime/operating-mechanism.html) 文档。
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const updateManager = Taro.getUpdateManager()
-   *
-   *     updateManager.onCheckForUpdate(function (res) {
-   *       // 请求完新版本信息的回调
-   *       console.log(res.hasUpdate)
-   *     })
-   *
-   *     updateManager.onUpdateReady(function () {
-   *       Taro.showModal({
-   *         title: '更新提示',
-   *         content: '新版本已经准备好，是否重启应用？',
-   *         success: function (res) {
-   *           if (res.confirm) {
-   *             // 新的版本已经下载好，调用 applyUpdate 应用新版本并重启
-   *             updateManager.applyUpdate()
-   *           }
-   *         }
-   *       })
-   *
-   *     })
-   *
-   *     updateManager.onUpdateFailed(function () {
-   *       // 新的版本下载失败
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/getUpdateManager.html#wxgetupdatemanager
+   ```javascript
+   const updateManager = Taro.getUpdateManager()
+         updateManager.onCheckForUpdate(function (res) {
+     // 请求完新版本信息的回调
+     console.log(res.hasUpdate)
+   })
+         updateManager.onUpdateReady(function () {
+     Taro.showModal({
+       title: '更新提示',
+       content: '新版本已经准备好，是否重启应用？',
+       success: function (res) {
+         if (res.confirm) {
+           // 新的版本已经下载好，调用 applyUpdate 应用新版本并重启
+           updateManager.applyUpdate()
+         }
+       }
+     })
+         })
+         updateManager.onUpdateFailed(function () {
+     // 新的版本下载失败
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/update/wx.getUpdateManager.html
    */
   function getUpdateManager(): UpdateManager
 
@@ -9035,20 +10286,17 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     const worker = Taro.createWorker('workers/request/index.js') // 文件名指定 worker 的入口文件路径，绝对路径
-   *
-   *     worker.onMessage(function (res) {
-   *       console.log(res)
-   *     })
-   *
-   *     worker.postMessage({
-   *       msg: 'hello worker'
-   *     })
-   *
-   *     worker.terminate()
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/createWorker.html#wxcreateworkerscriptpath
+   ```javascript
+   const worker = Taro.createWorker('workers/request/index.js') // 文件名指定 worker 的入口文件路径，绝对路径
+         worker.onMessage(function (res) {
+     console.log(res)
+   })
+         worker.postMessage({
+     msg: 'hello worker'
+   })
+         worker.terminate()
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/worker/wx.createWorker.html
    */
   function createWorker(scriptPath: any): Worker
 
@@ -9106,1721 +10354,1356 @@ declare namespace Taro {
    *
    * **示例代码：**
    *
-   *     ```javascript
-   *     // 打开调试
-   *     Taro.setEnableDebug({
-   *         enableDebug: true
-   *     })
-   *
-   *     // 关闭调试
-   *     Taro.setEnableDebug({
-   *         enableDebug: false
-   *     })
-   *     ```
-   * @see https://developers.weixin.qq.com/miniprogram/dev/api/setEnableDebug.html#wxsetenabledebugobject
+   ```javascript
+   // 打开调试
+   Taro.setEnableDebug({
+       enableDebug: true
+   })
+         // 关闭调试
+   Taro.setEnableDebug({
+       enableDebug: false
+   })
+   ```
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/debug/wx.setEnableDebug.html
    */
   function setEnableDebug(OBJECT: setEnableDebug.Param): Promise<setEnableDebug.Promised>
 
-  namespace CanvasContext {
-    namespace draw {
-      type Param1 = () => any
-    }
+  /**
+   * @since 10.1.35
+   * 此接口可获取支付宝会员的基础信息
+   */
+  function getOpenUserInfo(): Promise<string>
+
+  interface OffscreenCanvas {
+    /**
+     *
+     * @param contextType
+     *
+     * 该方法返回 OffscreenCanvas 的绘图上下文
+     */
+    getContext(contextType: string): any
   }
-  class CanvasContext {
-    /**
-     *
-     * **定义：**
-     *
-     * 设置填充色。
-     *
-     * **Tip**: 如果没有设置 `fillStyle`，默认颜色为 `black`。
-     *
-     * **参数：**
-     *
-     *   参数    |  类型                                                                              |  定义
-     * ----------|------------------------------------------------------------------------------------|--------------------
-     *   color   |  [Color](https://developers.weixin.qq.com/miniprogram/dev/api/canvas/color.html)   |  Gradient Object
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setFillStyle(color)
-     *     canvasContext.fillStyle = color // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(10, 10, 150, 75)
-     *     ctx.draw()
-     *     ```
-     */
-    setFillStyle(color: string): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置边框颜色。
-     *
-     * **Tip**: 如果没有设置 `fillStyle`，默认颜色为 `black`。
-     *
-     * **参数：**
-     *
-     *   参数    |  类型                                                                              |  定义
-     * ----------|------------------------------------------------------------------------------------|--------------------
-     *   color   |  [Color](https://developers.weixin.qq.com/miniprogram/dev/api/canvas/color.html)   |  Gradient Object
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setStrokeStyle(color)
-     *     canvasContext.strokeStyle = color // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.setStrokeStyle('red')
-     *     ctx.strokeRect(10, 10, 150, 75)
-     *     ctx.draw()
-     *     ```
-     */
-    setStrokeStyle(color: string): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置阴影样式。
-     *
-     * **Tip**: 如果没有设置，offsetX 默认值为0， offsetY 默认值为0， blur 默认值为0，color 默认值为 `black`。
-     *
-     * **参数：**
-     *
-     *   参数      |  类型                                                                              |  范围    |  定义
-     * ------------|------------------------------------------------------------------------------------|----------|--------------------
-     *   offsetX   |  Number                                                                            |          |阴影相对于形状在水平方向的偏移
-     *   offsetY   |  Number                                                                            |          |阴影相对于形状在竖直方向的偏移
-     *   blur      |  Number                                                                            |  0~100   |阴影的模糊级别，数值越大越模糊
-     *   color     |  [Color](https://developers.weixin.qq.com/miniprogram/dev/api/canvas/color.html)   |          |  阴影的颜色
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.setFillStyle('red')
-     *     ctx.setShadow(10, 50, 50, 'blue')
-     *     ctx.fillRect(10, 10, 150, 75)
-     *     ctx.draw()
-     *     ```
-     */
-    setShadow(offsetX: number, offsetY: number, blur: number, color: string): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 设置阴影的模糊级别
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.shadowBlur = value
-     *     ```
-     */
-    shadowBlur(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 设置阴影的颜色
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.shadowColor = value
-     *     ```
-     */
-    shadowColor(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 设置阴影相对于形状在水平方向的偏移
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.shadowOffsetX = value
-     *     ```
-     */
-    shadowOffsetX(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 设置阴影相对于形状在竖直方向的偏移
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.shadowOffsetY = value
-     *     ```
-     */
-    shadowOffsetY(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 创建一个线性的渐变颜色。
-     *
-     * **Tip**: 需要使用 `addColorStop()` 来指定渐变点，至少要两个。
-     *
-     * **参数：**
-     *
-     *   参数 |  类型     |  定义
-     * -------|-----------|-----------
-     *   x0   |  Number   |起点的x坐标
-     *   y0   |  Number   |起点的y坐标
-     *   x1   |  Number   |终点的x坐标
-     *   y1   |  Number   |终点的y坐标
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // Create linear gradient
-     *     const grd = ctx.createLinearGradient(0, 0, 200, 0)
-     *     grd.addColorStop(0, 'red')
-     *     grd.addColorStop(1, 'white')
-     *
-     *     // Fill with gradient
-     *     ctx.setFillStyle(grd)
-     *     ctx.fillRect(10, 10, 150, 80)
-     *     ctx.draw()
-     *     ```
-     */
-    createLinearGradient(x0: number, y0: number, x1: number, y1: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 创建一个圆形的渐变颜色。
-     *
-     * **Tip**: 起点在圆心，终点在圆环。
-     *
-     * **Tip**: 需要使用 `addColorStop()` 来指定渐变点，至少要两个。
-     *
-     * **参数：**
-     *
-     *   参数 |  类型     |  定义
-     * -------|-----------|-----------
-     *   x    |  Number   |圆心的x坐标
-     *   y    |  Number   |圆心的y坐标
-     *   r    |  Number   |  圆的半径
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // Create circular gradient
-     *     const grd = ctx.createCircularGradient(75, 50, 50)
-     *     grd.addColorStop(0, 'red')
-     *     grd.addColorStop(1, 'white')
-     *
-     *     // Fill with gradient
-     *     ctx.setFillStyle(grd)
-     *     ctx.fillRect(10, 10, 150, 80)
-     *     ctx.draw()
-     *     ```
-     */
-    createCircularGradient(x: number, y: number, r: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 创建一个颜色的渐变点。
-     *
-     * **Tip**: 小于最小 stop 的部分会按最小 stop 的 color 来渲染，大于最大 stop 的部分会按最大 stop 的 color 来渲染。
-     *
-     * **Tip**: 需要使用 `addColorStop()` 来指定渐变点，至少要两个。
-     *
-     * **参数：**
-     *
-     *   参数    |  类型                                                                              |  定义
-     * ----------|------------------------------------------------------------------------------------|--------------------
-     *   stop    |  Number(0-1)                                                                       |表示渐变点在起点和终点中的位置
-     *   color   |  [Color](https://developers.weixin.qq.com/miniprogram/dev/api/canvas/color.html)   |  渐变点的颜色
-     *
-     * **示例代码：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // Create circular gradient
-     *     const grd = ctx.createLinearGradient(30, 10, 120, 10)
-     *     grd.addColorStop(0, 'red')
-     *     grd.addColorStop(0.16, 'orange')
-     *     grd.addColorStop(0.33, 'yellow')
-     *     grd.addColorStop(0.5, 'green')
-     *     grd.addColorStop(0.66, 'cyan')
-     *     grd.addColorStop(0.83, 'blue')
-     *     grd.addColorStop(1, 'purple')
-     *
-     *     // Fill with gradient
-     *     ctx.setFillStyle(grd)
-     *     ctx.fillRect(10, 10, 150, 80)
-     *     ctx.draw()
-     *     ```
-     */
-    addColorStop(stop: number, color: string): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置线条的宽度。
-     *
-     * **参数：**
-     *
-     *   参数        |  类型     |  说明
-     * --------------|-----------|-----------------
-     *   lineWidth   |  Number   |线条的宽度(单位是px)
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setLineWidth(lineWidth)
-     *     canvasContext.lineWidth = lineWidth // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.beginPath()
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(150, 10)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(5)
-     *     ctx.moveTo(10, 30)
-     *     ctx.lineTo(150, 30)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(10, 50)
-     *     ctx.lineTo(150, 50)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(15)
-     *     ctx.moveTo(10, 70)
-     *     ctx.lineTo(150, 70)
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setLineWidth(lineWidth: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置线条的端点样式。
-     *
-     * **参数：**
-     *
-     *   参数      |  类型     |  范围                      |  说明
-     * ------------|-----------|----------------------------|--------------
-     *   lineCap   |  String   |  'butt'、'round'、'square' |线条的结束端点样式
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setLineCap(lineCap)
-     *     canvasContext.lineCap = lineCap // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **示例代码：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.beginPath()
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(150, 10)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineCap('butt')
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(10, 30)
-     *     ctx.lineTo(150, 30)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineCap('round')
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(10, 50)
-     *     ctx.lineTo(150, 50)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineCap('square')
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(10, 70)
-     *     ctx.lineTo(150, 70)
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setLineCap(lineCap: string): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置线条的交点样式。
-     *
-     * **参数：**
-     *
-     *   参数       |  类型     |  范围                      |  说明
-     * -------------|-----------|----------------------------|--------------
-     *   lineJoin   |  String   |  'bevel'、'round'、'miter' |线条的结束交点样式
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setLineJoin(lineJoin)
-     *     canvasContext.lineJoin = lineJoin // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.beginPath()
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(100, 50)
-     *     ctx.lineTo(10, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineJoin('bevel')
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(50, 10)
-     *     ctx.lineTo(140, 50)
-     *     ctx.lineTo(50, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineJoin('round')
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(90, 10)
-     *     ctx.lineTo(180, 50)
-     *     ctx.lineTo(90, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineJoin('miter')
-     *     ctx.setLineWidth(10)
-     *     ctx.moveTo(130, 10)
-     *     ctx.lineTo(220, 50)
-     *     ctx.lineTo(130, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setLineJoin(lineJoin: string): void
-    /**
-     * > 基础库 1.6.0 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 设置线条的宽度。
-     *
-     * **参数：**
-     *
-     *   参数      |  类型     |  说明
-     * ------------|-----------|-------------------------------
-     *   pattern   |  Array    |一组描述交替绘制线段和间距（坐标空间单位）长度的数字
-     *   offset    |  Number   |  虚线偏移量
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setLineDash([10, 20], 5);
-     *
-     *     ctx.beginPath();
-     *     ctx.moveTo(0,100);
-     *     ctx.lineTo(400, 100);
-     *     ctx.stroke();
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setLineDash(pattern: any[], offset: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置最大斜接长度，斜接长度指的是在两条线交汇处内角和外角之间的距离。 当 `setLineJoin()` 为 miter 时才有效。超过最大倾斜长度的，连接处将以 lineJoin 为 bevel 来显示
-     *
-     * **参数：**
-     *
-     *   参数         |  类型     |  说明
-     * ---------------|-----------|-----------
-     *   miterLimit   |  Number   |最大斜接长度
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setMiterLimit(miterLimit)
-     *     canvasContext.miterLimit = miterLimit // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(10)
-     *     ctx.setLineJoin('miter')
-     *     ctx.setMiterLimit(1)
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(100, 50)
-     *     ctx.lineTo(10, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(10)
-     *     ctx.setLineJoin('miter')
-     *     ctx.setMiterLimit(2)
-     *     ctx.moveTo(50, 10)
-     *     ctx.lineTo(140, 50)
-     *     ctx.lineTo(50, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(10)
-     *     ctx.setLineJoin('miter')
-     *     ctx.setMiterLimit(3)
-     *     ctx.moveTo(90, 10)
-     *     ctx.lineTo(180, 50)
-     *     ctx.lineTo(90, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.beginPath()
-     *     ctx.setLineWidth(10)
-     *     ctx.setLineJoin('miter')
-     *     ctx.setMiterLimit(4)
-     *     ctx.moveTo(130, 10)
-     *     ctx.lineTo(220, 50)
-     *     ctx.lineTo(130, 90)
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setMiterLimit(miterLimit: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 创建一个矩形。
-     *
-     * **Tip**: 用 `fill()` 或者 `stroke()` 方法将矩形真正的画到 canvas 中。
-     *
-     * **参数：**
-     *
-     *   参数     |  类型     |  说明
-     * -----------|-----------|----------------
-     *   x        |  Number   |矩形路径左上角的x坐标
-     *   y        |  Number   |矩形路径左上角的y坐标
-     *   width    |  Number   | 矩形路径的宽度
-     *   height   |  Number   | 矩形路径的高度
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.rect(10, 10, 150, 75)
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *     ctx.draw()
-     *     ```
-     */
-    rect(x: number, y: number, width: number, height: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 填充一个矩形。
-     *
-     * **Tip**: 用 `setFillStyle()` 设置矩形的填充色，如果没设置默认是黑色。
-     *
-     * **参数：**
-     *
-     *   参数     |  类型     |  说明
-     * -----------|-----------|----------------
-     *   x        |  Number   |矩形路径左上角的x坐标
-     *   y        |  Number   |矩形路径左上角的y坐标
-     *   width    |  Number   | 矩形路径的宽度
-     *   height   |  Number   | 矩形路径的高度
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(10, 10, 150, 75)
-     *     ctx.draw()
-     *     ```
-     */
-    fillRect(x: number, y: number, width: number, height: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 画一个矩形(非填充)。
-     *
-     * **Tip**: 用 `setFillStroke()` 设置矩形线条的颜色，如果没设置默认是黑色。
-     *
-     * **参数：**
-     *
-     *   参数     |  类型     |  范围 |  说明
-     * -----------|-----------|-------|----------------
-     *   x        |  Number   |       |矩形路径左上角的x坐标
-     *   y        |  Number   |       |矩形路径左上角的y坐标
-     *   width    |  Number   |       | 矩形路径的宽度
-     *   height   |  Number   |       | 矩形路径的高度
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.setStrokeStyle('red')
-     *     ctx.strokeRect(10, 10, 150, 75)
-     *     ctx.draw()
-     *     ```
-     */
-    strokeRect(x: number, y: number, width: number, height: number): void
-    /**
-     *
-     * **参数：**
-     *
-     *   参数     |  类型     |  说明
-     * -----------|-----------|----------------
-     *   x        |  Number   |矩形区域左上角的x坐标
-     *   y        |  Number   |矩形区域左上角的y坐标
-     *   width    |  Number   | 矩形区域的宽度
-     *   height   |  Number   | 矩形区域的高度
-     *
-     * **定义：**
-     *
-     *     ```html
-     *     <canvas canvas-id="myCanvas" style="border: 1px solid; background: #123456;"/>
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(0, 0, 150, 200)
-     *     ctx.setFillStyle('blue')
-     *     ctx.fillRect(150, 0, 150, 200)
-     *     ctx.clearRect(10, 10, 150, 75)
-     *     ctx.draw()
-     *     ```
-     */
-    clearRect(x: number, y: number, width: number, height: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 对当前路径中的内容进行填充。默认的填充色为黑色。
-     *
-     * **Tip**: 如果当前路径没有闭合，`fill()` 方法会将起点和终点进行连接，然后填充，详情见例一。
-     *
-     * **Tip**: `fill()` 填充的的路径是从 `beginPath()` 开始计算，但是不会将 `fillRect()` 包含进去，详情见例二。
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(100, 10)
-     *     ctx.lineTo(100, 100)
-     *     ctx.fill()
-     *     ctx.draw()
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     // begin path
-     *     ctx.rect(10, 10, 100, 30)
-     *     ctx.setFillStyle('yellow')
-     *     ctx.fill()
-     *
-     *     // begin another path
-     *     ctx.beginPath()
-     *     ctx.rect(10, 40, 100, 30)
-     *
-     *     // only fill this rect, not in current path
-     *     ctx.setFillStyle('blue')
-     *     ctx.fillRect(10, 70, 100, 30)
-     *
-     *     ctx.rect(10, 100, 100, 30)
-     *
-     *     // it will fill current path
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *     ctx.draw()
-     *     ```
-     */
-    fill(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 画出当前路径的边框。默认颜色色为黑色。
-     *
-     * **Tip**: `stroke()` 描绘的的路径是从 `beginPath()` 开始计算，但是不会将 `strokeRect()` 包含进去，详情见例二。
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(100, 10)
-     *     ctx.lineTo(100, 100)
-     *     ctx.stroke()
-     *     ctx.draw()
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     // begin path
-     *     ctx.rect(10, 10, 100, 30)
-     *     ctx.setStrokeStyle('yellow')
-     *     ctx.stroke()
-     *
-     *     // begin another path
-     *     ctx.beginPath()
-     *     ctx.rect(10, 40, 100, 30)
-     *
-     *     // only stoke this rect, not in current path
-     *     ctx.setStrokeStyle('blue')
-     *     ctx.strokeRect(10, 70, 100, 30)
-     *
-     *     ctx.rect(10, 100, 100, 30)
-     *
-     *     // it will stroke current path
-     *     ctx.setStrokeStyle('red')
-     *     ctx.stroke()
-     *     ctx.draw()
-     *     ```
-     */
-    stroke(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 开始创建一个路径，需要调用fill或者stroke才会使用路径进行填充或描边。
-     *
-     * **Tip**: 在最开始的时候相当于调用了一次 `beginPath()`。
-     *
-     * **Tip**: 同一个路径内的多次`setFillStyle()`、`setStrokeStyle()`、`setLineWidth()`等设置，以最后一次设置为准。
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     // begin path
-     *     ctx.rect(10, 10, 100, 30)
-     *     ctx.setFillStyle('yellow')
-     *     ctx.fill()
-     *
-     *     // begin another path
-     *     ctx.beginPath()
-     *     ctx.rect(10, 40, 100, 30)
-     *
-     *     // only fill this rect, not in current path
-     *     ctx.setFillStyle('blue')
-     *     ctx.fillRect(10, 70, 100, 30)
-     *
-     *     ctx.rect(10, 100, 100, 30)
-     *
-     *     // it will fill current path
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *     ctx.draw()
-     *     ```
-     */
-    beginPath(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 关闭一个路径
-     *
-     * **Tip**: 关闭路径会连接起点和终点。
-     *
-     * **Tip**: 如果关闭路径后没有调用 `fill()` 或者 `stroke()` 并开启了新的路径，那之前的路径将不会被渲染。
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(100, 10)
-     *     ctx.lineTo(100, 100)
-     *     ctx.closePath()
-     *     ctx.stroke()
-     *     ctx.draw()
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     // begin path
-     *     ctx.rect(10, 10, 100, 30)
-     *     ctx.closePath()
-     *
-     *     // begin another path
-     *     ctx.beginPath()
-     *     ctx.rect(10, 40, 100, 30)
-     *
-     *     // only fill this rect, not in current path
-     *     ctx.setFillStyle('blue')
-     *     ctx.fillRect(10, 70, 100, 30)
-     *
-     *     ctx.rect(10, 100, 100, 30)
-     *
-     *     // it will fill current path
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *     ctx.draw()
-     *     ```
-     */
-    closePath(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 把路径移动到画布中的指定点，不创建线条。
-     *
-     * **Tip**: 用 `stroke()` 方法来画线条
-     *
-     * **参数：**
-     *
-     *   参数 |  类型     |  说明
-     * -------|-----------|-------------
-     *   x    |  Number   |目标位置的x坐标
-     *   y    |  Number   |目标位置的y坐标
-     *
-     * **示例代码：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.moveTo(10, 10)
-     *     ctx.lineTo(100, 10)
-     *
-     *     ctx.moveTo(10, 50)
-     *     ctx.lineTo(100, 50)
-     *     ctx.stroke()
-     *     ctx.draw()
-     *     ```
-     */
-    moveTo(x: number, y: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * `lineTo` 方法增加一个新点，然后创建一条从上次指定点到目标点的线。
-     *
-     * **Tip**: 用 `stroke()` 方法来画线条
-     *
-     * **参数：**
-     *
-     *   参数 |  类型     |  说明
-     * -------|-----------|-------------
-     *   x    |  Number   |目标位置的x坐标
-     *   y    |  Number   |目标位置的y坐标
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.moveTo(10, 10)
-     *     ctx.rect(10, 10, 100, 50)
-     *     ctx.lineTo(110, 60)
-     *     ctx.stroke()
-     *     ctx.draw()
-     *     ```
-     */
-    lineTo(x: number, y: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 画一条弧线。
-     *
-     * **Tip**: 创建一个圆可以用 `arc()` 方法指定其实弧度为0，终止弧度为 `2 * Math.PI`。
-     *
-     * **Tip**: 用 `stroke()` 或者 `fill()` 方法来在 canvas 中画弧线。
-     *
-     * **参数：**
-     *
-     *   参数               |  类型      |  说明
-     * ---------------------|------------|---------------------------------------
-     *   x                  |  Number    |  圆的x坐标
-     *   y                  |  Number    |  圆的y坐标
-     *   r                  |  Number    |  圆的半径
-     *   sAngle             |  Number    |  起始弧度，单位弧度（在3点钟方向）
-     *   eAngle             |  Number    |  终止弧度
-     *   counterclockwise   |  Boolean   |可选。指定弧度的方向是逆时针还是顺时针。默认是false，即顺时针。
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // Draw coordinates
-     *     ctx.arc(100, 75, 50, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('#EEEEEE')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.moveTo(40, 75)
-     *     ctx.lineTo(160, 75)
-     *     ctx.moveTo(100, 15)
-     *     ctx.lineTo(100, 135)
-     *     ctx.setStrokeStyle('#AAAAAA')
-     *     ctx.stroke()
-     *
-     *     ctx.setFontSize(12)
-     *     ctx.setFillStyle('black')
-     *     ctx.fillText('0', 165, 78)
-     *     ctx.fillText('0.5*PI', 83, 145)
-     *     ctx.fillText('1*PI', 15, 78)
-     *     ctx.fillText('1.5*PI', 83, 10)
-     *
-     *     // Draw points
-     *     ctx.beginPath()
-     *     ctx.arc(100, 75, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('lightgreen')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.arc(100, 25, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('blue')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.arc(150, 75, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *
-     *     // Draw arc
-     *     ctx.beginPath()
-     *     ctx.arc(100, 75, 50, 0, 1.5 * Math.PI)
-     *     ctx.setStrokeStyle('#333333')
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    arc(x: number, y: number, r: number, sAngle: number, eAngle: number, counterclockwise: boolean): void
-    /**
-     *
-     * **定义：**
-     *
-     * 创建三次方贝塞尔曲线路径。
-     *
-     * **Tip**: 曲线的起始点为路径中前一个点。
-     *
-     * **参数：**
-     *
-     *   参数   |  类型     |  说明
-     * ---------|-----------|--------------------
-     *   cp1x   |  Number   |第一个贝塞尔控制点的 x 坐标
-     *   cp1y   |  Number   |第一个贝塞尔控制点的 y 坐标
-     *   cp2x   |  Number   |第二个贝塞尔控制点的 x 坐标
-     *   cp2y   |  Number   |第二个贝塞尔控制点的 y 坐标
-     *   x      |  Number   |  结束点的 x 坐标
-     *   y      |  Number   |  结束点的 y 坐标
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // Draw points
-     *     ctx.beginPath()
-     *     ctx.arc(20, 20, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.arc(200, 20, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('lightgreen')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.arc(20, 100, 2, 0, 2 * Math.PI)
-     *     ctx.arc(200, 100, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('blue')
-     *     ctx.fill()
-     *
-     *     ctx.setFillStyle('black')
-     *     ctx.setFontSize(12)
-     *
-     *     // Draw guides
-     *     ctx.beginPath()
-     *     ctx.moveTo(20, 20)
-     *     ctx.lineTo(20, 100)
-     *     ctx.lineTo(150, 75)
-     *
-     *     ctx.moveTo(200, 20)
-     *     ctx.lineTo(200, 100)
-     *     ctx.lineTo(70, 75)
-     *     ctx.setStrokeStyle('#AAAAAA')
-     *     ctx.stroke()
-     *
-     *     // Draw quadratic curve
-     *     ctx.beginPath()
-     *     ctx.moveTo(20, 20)
-     *     ctx.bezierCurveTo(20, 100, 200, 100, 200, 20)
-     *     ctx.setStrokeStyle('black')
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 创建二次贝塞尔曲线路径。
-     *
-     * **Tip**: 曲线的起始点为路径中前一个点。
-     *
-     * **参数：**
-     *
-     *   参数  |  类型     |  说明
-     * --------|-----------|---------------
-     *   cpx   |  Number   |贝塞尔控制点的x坐标
-     *   cpy   |  Number   |贝塞尔控制点的y坐标
-     *   x     |  Number   | 结束点的x坐标
-     *   y     |  Number   | 结束点的y坐标
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // Draw points
-     *     ctx.beginPath()
-     *     ctx.arc(20, 20, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('red')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.arc(200, 20, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('lightgreen')
-     *     ctx.fill()
-     *
-     *     ctx.beginPath()
-     *     ctx.arc(20, 100, 2, 0, 2 * Math.PI)
-     *     ctx.setFillStyle('blue')
-     *     ctx.fill()
-     *
-     *     ctx.setFillStyle('black')
-     *     ctx.setFontSize(12)
-     *
-     *     // Draw guides
-     *     ctx.beginPath()
-     *     ctx.moveTo(20, 20)
-     *     ctx.lineTo(20, 100)
-     *     ctx.lineTo(200, 20)
-     *     ctx.setStrokeStyle('#AAAAAA')
-     *     ctx.stroke()
-     *
-     *     // Draw quadratic curve
-     *     ctx.beginPath()
-     *     ctx.moveTo(20, 20)
-     *     ctx.quadraticCurveTo(20, 100, 200, 20)
-     *     ctx.setStrokeStyle('black')
-     *     ctx.stroke()
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 在调用`scale`方法后，之后创建的路径其横纵坐标会被缩放。多次调用`scale`，倍数会相乘。
-     *
-     * **参数：**
-     *
-     *   参数          |  类型     |  说明
-     * ----------------|-----------|--------------------------------------------
-     *   scaleWidth    |  Number   |横坐标缩放的倍数 (1 = 100%，0.5 = 50%，2 = 200%)
-     *   scaleHeight   |  Number   |纵坐标轴缩放的倍数 (1 = 100%，0.5 = 50%，2 = 200%)
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.strokeRect(10, 10, 25, 15)
-     *     ctx.scale(2, 2)
-     *     ctx.strokeRect(10, 10, 25, 15)
-     *     ctx.scale(2, 2)
-     *     ctx.strokeRect(10, 10, 25, 15)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    scale(scaleWidth: number, scaleHeight: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 以原点为中心，原点可以用 [translate](https://developers.weixin.qq.com/miniprogram/dev/api/canvas/rotate.html#translate)方法修改。顺时针旋转当前坐标轴。多次调用`rotate`，旋转的角度会叠加。
-     *
-     * **参数：**
-     *
-     *   参数     |  类型     |  说明
-     * -----------|-----------|-----------------------------------------------------
-     *   rotate   |  Number   |旋转角度，以弧度计(degrees * Math.PI/180；degrees范围为0~360)
-     *
-     * ![](https://mp.weixin.qq.com/debug/wxadoc/dev/image/canvas/rotate.png)
-     *
-     * **参数：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.strokeRect(100, 10, 150, 100)
-     *     ctx.rotate(20 * Math.PI / 180)
-     *     ctx.strokeRect(100, 10, 150, 100)
-     *     ctx.rotate(20 * Math.PI / 180)
-     *     ctx.strokeRect(100, 10, 150, 100)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    rotate(rotate: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 对当前坐标系的原点(0, 0)进行变换，默认的坐标系原点为页面左上角。
-     *
-     * **参数：**
-     *
-     *   参数 |  类型     |  说明
-     * -------|-----------|------------
-     *   x    |  Number   |水平坐标平移量
-     *   y    |  Number   |竖直坐标平移量
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.strokeRect(10, 10, 150, 100)
-     *     ctx.translate(20, 20)
-     *     ctx.strokeRect(10, 10, 150, 100)
-     *     ctx.translate(20, 20)
-     *     ctx.strokeRect(10, 10, 150, 100)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    translate(x: number, y: number): void
-    /**
-     * > 基础库 1.6.0 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * clip() 方法从原始画布中剪切任意形状和尺寸。一旦剪切了某个区域，则所有之后的绘图都会被限制在被剪切的区域内（不能访问画布上的其他区域）。可以在使用 clip() 方法前通过使用 save() 方法对当前画布区域进行保存，并在以后的任意时间对其进行恢复（通过 restore() 方法）。
-     *
-     * **例子：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     Taro.downloadFile({
-     *       url: 'http://is5.mzstatic.com/image/thumb/Purple128/v4/75/3b/90/753b907c-b7fb-5877-215a-759bd73691a4/source/50x50bb.jpg',
-     *       success: function(res) {
-     *           ctx.save()
-     *           ctx.beginPath()
-     *           ctx.arc(50, 50, 25, 0, 2*Math.PI)
-     *           ctx.clip()
-     *           ctx.drawImage(res.tempFilePath, 25, 25)
-     *           ctx.restore()
-     *           ctx.draw()
-     *       }
-     *     })
-     *     ```
-     */
-    clip(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置字体的字号。
-     *
-     * **参数：**
-     *
-     *   参数       |  类型     |  说明
-     * -------------|-----------|----------
-     *   fontSize   |  Number   |字体的字号
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setFontSize(20)
-     *     ctx.fillText('20', 20, 20)
-     *     ctx.setFontSize(30)
-     *     ctx.fillText('30', 40, 40)
-     *     ctx.setFontSize(40)
-     *     ctx.fillText('40', 60, 60)
-     *     ctx.setFontSize(50)
-     *     ctx.fillText('50', 90, 90)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setFontSize(fontSize: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 在画布上绘制被填充的文本。
-     *
-     * **参数：**
-     *
-     *   参数       |  类型     |  说明
-     * -------------|-----------|------------------
-     *   text       |  String   |在画布上输出的文本
-     *   x          |  Number   |绘制文本的左上角x坐标位置
-     *   y          |  Number   |绘制文本的左上角y坐标位置
-     *   maxWidth   |  Number   |需要绘制的最大宽度，可选
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setFontSize(20)
-     *     ctx.fillText('Hello', 20, 20)
-     *     ctx.fillText('MINA', 100, 100)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    fillText(text: string, x: number, y: number, maxWidth: number): void
-    /**
-     * > 基础库 1.1.0 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 用于设置文字的对齐
-     *
-     * **参数：**
-     *
-     *   参数    |  类型     |  定义
-     * ----------|-----------|--------------------------------
-     *   align   |  String   |可选值 'left'、'center'、'right'
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setTextAlign(align)
-     *     canvasContext.textAlign = align // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **示例代码：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setStrokeStyle('red')
-     *     ctx.moveTo(150, 20)
-     *     ctx.lineTo(150, 170)
-     *     ctx.stroke()
-     *
-     *     ctx.setFontSize(15)
-     *     ctx.setTextAlign('left')
-     *     ctx.fillText('textAlign=left', 150, 60)
-     *
-     *     ctx.setTextAlign('center')
-     *     ctx.fillText('textAlign=center', 150, 80)
-     *
-     *     ctx.setTextAlign('right')
-     *     ctx.fillText('textAlign=right', 150, 100)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setTextAlign(align: string): void
-    /**
-     * > 基础库 1.4.0 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 用于设置文字的水平对齐
-     *
-     * **参数：**
-     *
-     *   参数           |  类型     |  定义
-     * -----------------|-----------|-----------------------------------------
-     *   textBaseline   |  String   |可选值 'top'、'bottom'、'middle'、'normal'
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setTextBaseline(textBaseline)
-     *     canvasContext.textBaseline = textBaseline // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **示例代码：**
-     *
-     *     ```js
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setStrokeStyle('red')
-     *     ctx.moveTo(5, 75)
-     *     ctx.lineTo(295, 75)
-     *     ctx.stroke()
-     *
-     *     ctx.setFontSize(20)
-     *
-     *     ctx.setTextBaseline('top')
-     *     ctx.fillText('top', 5, 75)
-     *
-     *     ctx.setTextBaseline('middle')
-     *     ctx.fillText('middle', 50, 75)
-     *
-     *     ctx.setTextBaseline('bottom')
-     *     ctx.fillText('bottom', 120, 75)
-     *
-     *     ctx.setTextBaseline('normal')
-     *     ctx.fillText('normal', 200, 75)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setTextBaseline(textBaseline: string): void
-    /**
-     *
-     * **定义：**
-     *
-     * 绘制图像到画布。
-     *
-     * **参数：**
-     *
-     *   参数            |  类型     |  说明
-     * ------------------|-----------|-------------------------------
-     *   imageResource   |  String   |  所要绘制的图片资源
-     *   dx              |  Number   |图像的左上角在目标canvas上 X 轴的位置
-     *   dy              |  Number   |图像的左上角在目标canvas上 Y 轴的位置
-     *   dWidth          |  Number   |在目标画布上绘制图像的宽度，允许对绘制的图像进行缩放
-     *   dHeigt          |  Number   |在目标画布上绘制图像的高度，允许对绘制的图像进行缩放
-     *   sx              |  Number   |源图像的矩形选择框的左上角 X 坐标
-     *   sy              |  Number   |源图像的矩形选择框的左上角 Y 坐标
-     *   sWidth          |  Number   |  源图像的矩形选择框的高度
-     *   sHeight         |  Number   |  源图像的矩形选择框的高度
-     *
-     * **有三个版本的写法：**
-     *
-     * *   drawImage(dx, dy)
-     * *   drawImage(dx, dy, dWidth, dHeight)
-     * *   drawImage(sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight) **从 1.9.0 起支持**
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     Taro.chooseImage({
-     *       success: function(res){
-     *         ctx.drawImage(res.tempFilePaths[0], 0, 0, 150, 100)
-     *         ctx.draw()
-     *       }
-     *     })
-     *     ```
-     */
-    drawImage(
-      imageResource: string,
-      dx: number,
-      dy: number,
+  namespace CanvasContext {
+    namespace draw { type Param1 = () => any }
+  }
+  interface Color {}
+
+  interface CanvasContext {
+    /** 填充颜色。用法同 [CanvasContext.setFillStyle()]。
+     *
+     * 最低基础库： `1.9.90` */
+    fillStyle: string
+    /** 当前字体样式的属性。符合 [CSS font 语法](https://developer.mozilla.org/zh-CN/docs/Web/CSS/font) 的 DOMString 字符串，至少需要提供字体大小和字体族名。默认值为 10px sans-serif。
+     *
+     * 最低基础库： `1.9.90` */
+    font: string
+    /** 全局画笔透明度。范围 0-1，0 表示完全透明，1 表示完全不透明。 */
+    globalAlpha: number
+    /** 在绘制新形状时应用的合成操作的类型。目前安卓版本只适用于 `fill` 填充块的合成，用于 `stroke` 线段的合成效果都是 `source-over`。
+     *
+     * 目前支持的操作有
+     * - 安卓：xor, source-over, source-atop, destination-out, lighter, overlay, darken, lighten, hard-light
+     * - iOS：xor, source-over, source-atop, destination-over, destination-out, lighter, multiply, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, saturation, luminosity
+     *
+     * 最低基础库： `1.9.90` */
+    globalCompositeOperation: string
+    /** 线条的端点样式。用法同 [CanvasContext.setLineCap()]。
+     *
+     * 最低基础库： `1.9.90` */
+    lineCap: number
+    /** 虚线偏移量，初始值为0
+     *
+     * 最低基础库： `1.9.90` */
+    lineDashOffset: number
+    /** 线条的交点样式。用法同 [CanvasContext.setLineJoin()]。
+     *
+     * 最低基础库： `1.9.90` */
+    lineJoin: number
+    /** 线条的宽度。用法同 [CanvasContext.setLineWidth()]。
+     *
+     * 最低基础库： `1.9.90` */
+    lineWidth: number
+    /** 最大斜接长度。用法同 [CanvasContext.setMiterLimit()]。
+     *
+     * 最低基础库： `1.9.90` */
+    miterLimit: number
+    /** 阴影的模糊级别
+     *
+     * 最低基础库： `1.9.90` */
+    shadowBlur: number
+    /** 阴影的颜色
+     *
+     * 最低基础库： `1.9.90` */
+    shadowColor: number
+    /** 阴影相对于形状在水平方向的偏移
+     *
+     * 最低基础库： `1.9.90` */
+    shadowOffsetX: number
+    /** 阴影相对于形状在竖直方向的偏移
+     *
+     * 最低基础库： `1.9.90` */
+    shadowOffsetY: number
+    /** 边框颜色。用法同 [CanvasContext.setFillStyle()]。
+     *
+     * 最低基础库： `1.9.90` */
+    strokeStyle: string
+    /** [CanvasContext.arc(number x, number y, number r, number sAngle, number eAngle, boolean counterclockwise)](CanvasContext.arc.md)
+     *
+     * 创建一条弧线。
+     *
+     *   - 创建一个圆可以指定起始弧度为 0，终止弧度为 2 * Math.PI。
+     *   - 用 `stroke` 或者 `fill` 方法来在 `canvas` 中画弧线。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // Draw coordinates
+   ctx.arc(100, 75, 50, 0, 2   Math.PI)
+   ctx.setFillStyle('#EEEEEE')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.moveTo(40, 75)
+   ctx.lineTo(160, 75)
+   ctx.moveTo(100, 15)
+   ctx.lineTo(100, 135)
+   ctx.setStrokeStyle('#AAAAAA')
+   ctx.stroke()
+   ctx.setFontSize(12)
+   ctx.setFillStyle('black')
+   ctx.fillText('0', 165, 78)
+   ctx.fillText('0.5 PI', 83, 145)
+   ctx.fillText('1 PI', 15, 78)
+   ctx.fillText('1.5 PI', 83, 10)
+   // Draw points
+   ctx.beginPath()
+   ctx.arc(100, 75, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('lightgreen')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.arc(100, 25, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('blue')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.arc(150, 75, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('red')
+   ctx.fill()
+   // Draw arc
+   ctx.beginPath()
+   ctx.arc(100, 75, 50, 0, 1.5   Math.PI)
+   ctx.setStrokeStyle('#333333')
+   ctx.stroke()
+   ctx.draw()
+   ```
+     *
+     * ![]
+     *
+     * 针对 arc(100, 75, 50, 0, 1.5 * Math.PI)的三个关键坐标如下：
+     *
+     * - 绿色: 圆心 (100, 75)
+     * - 红色: 起始弧度 (0)
+     * - 蓝色: 终止弧度 (1.5 * Math.PI) */
+    arc(
+      /** 圆心的 x 坐标 */
+      x: number,
+      /** 圆心的 y 坐标 */
+      y: number,
+      /** 圆的半径 */
+      r: number,
+      /** 起始弧度，单位弧度（在3点钟方向） */
+      sAngle: number,
+      /** 终止弧度 */
+      eAngle: number,
+      /** 弧度的方向是否是逆时针 */
+      counterclockwise?: boolean
     ): void
-    drawImage(
-      imageResource: string,
-      dx: number,
-      dy: number,
-      dWidth: number,
-      dHeight: number,
-    ): void
-    drawImage(
-      imageResource: string,
-      sx: number,
-      sy: number,
-      sWidth: number,
-      sHeight: number,
-      dx: number,
-      dy: number,
-      dWidth: number,
-      dHeight: number,
-    ): void
-    /**
-     *
-     * **定义：**
-     *
-     * 设置全局画笔透明度。
-     *
-     * **参数：**
-     *
-     *   参数    |  类型     |  范围  |  说明
-     * ----------|-----------|--------|---------------------------
-     *   alpha   |  Number   |  0~1   |透明度，0 表示完全透明，1 表示完全不透明
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.setGlobalAlpha(alpha)
-     *     canvasContext.globalAlpha = alpha // 基础库 1.9.90 起支持
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(10, 10, 150, 100)
-     *     ctx.setGlobalAlpha(0.2)
-     *     ctx.setFillStyle('blue')
-     *     ctx.fillRect(50, 50, 150, 100)
-     *     ctx.setFillStyle('yellow')
-     *     ctx.fillRect(100, 100, 150, 100)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    setGlobalAlpha(alpha: number): void
-    /**
-     *
-     * **定义：**
-     *
-     * 保存当前的绘图上下文。
-     */
-    save(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 恢复之前保存的绘图上下文。
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     // save the default fill style
-     *     ctx.save()
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(10, 10, 150, 100)
-     *
-     *     // restore to the previous saved state
-     *     ctx.restore()
-     *     ctx.fillRect(50, 50, 150, 100)
-     *
-     *     ctx.draw()
-     *     ```
-     */
-    restore(): void
-    /**
-     *
-     * **定义：**
-     *
-     * 将之前在绘图上下文中的描述（路径、变形、样式）画到 canvas 中。
-     *
-     * **Tip**: 绘图上下文需要由 `Taro.createCanvasContext(canvasId)` 来创建。
-     *
-     * **参数：**
-     *
-     *   参数       |  类型       |  说明                                                                                                                                       | 最低版本
-     * -------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------|----------
-     *   reserve    |  Boolean    |非必填。本次绘制是否接着上一次绘制，即reserve参数为false，则在本次调用drawCanvas绘制之前native层应先清空画布再继续绘制；若reserver参数为true，则保留当前画布上的内容，本次调用drawCanvas绘制的内容覆盖在上面，默认 false|
-     *   callback   |  Function   |  绘制完成后回调                                                                                                                             |  1.7.0
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(10, 10, 150, 100)
-     *     ctx.draw()
-     *     ctx.fillRect(50, 50, 150, 100)
-     *     ctx.draw()
-     *     ```
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *
-     *     ctx.setFillStyle('red')
-     *     ctx.fillRect(10, 10, 150, 100)
-     *     ctx.draw()
-     *     ctx.fillRect(50, 50, 150, 100)
-     *     ctx.draw(true)
-     *     ```
-     */
-    draw(reserve?: boolean, callback?: CanvasContext.draw.Param1): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 测量文本尺寸信息，目前仅返回文本宽度。同步接口。
-     *
-     * **参数：**
-     *
-     *   参数   |  类型     |  说明
-     * ---------|-----------|-----------
-     *   text   |  String   |要测量的文本
-     *
-     * **返回：**
-     *
-     * 返回 TextMetrics 对象，结构如下：
-     *
-     *   参数    |  类型     |  说明
-     * ----------|-----------|----------
-     *   width   |  Number   |文本的宽度
-     *
-     * **例子：**
-     *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     ctx.font = 'italic bold 20px cursive'
-     *     const metrics = ctx.measureText('Hello World')
-     *     console.log(metrics.width)
-     *     ```
-     */
-    measureText(width: number): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
-     *
-     * 该属性是设置要在绘制新形状时应用的合成操作的类型。
-     *
-     * **参数：**
-     *
-     *   属性值 |  类型     |  说明
-     * ---------|-----------|---------------------
-     *   type   |  String   |标识要使用哪种合成或混合模式操作
-     *
-     * **type 支持的操作有：**
-     *
-     *   平台  |  操作
-     * --------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-     *   安卓  |  xor, source-over, source-atop, destination-out, lighter, overlay, darken, lighten, hard-light
-     *   iOS   |  xor, source-over, source-atop, destination-over, destination-out, lighter, multiply, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, saturation, luminosity
-     *
-     * **Bug**: 目前安卓版本只适用于 fill 填充块的合成，用于 stroke 线段的合成效果都是 source-over
-     *
-     * **语法：**
-     *
-     *     ```javascript
-     *     canvasContext.globalCompositeOperation = type
-     *     ```
-     */
-    globalCompositeOperation(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
-     *
-     * **定义：**
+    /** [CanvasContext.arcTo(number x1, number y1, number x2, number y2, number radius)](CanvasContext.arcTo.md)
      *
      * 根据控制点和半径绘制圆弧路径。
      *
-     * **参数：**
+     * 最低基础库： `1.9.90` */
+    arcTo(
+      /** 第一个控制点的 x 轴坐标 */
+      x1: number,
+      /** 第一个控制点的 y 轴坐标 */
+      y1: number,
+      /** 第二个控制点的 x 轴坐标 */
+      x2: number,
+      /** 第二个控制点的 y 轴坐标 */
+      y2: number,
+      /** 圆弧的半径 */
+      radius: number
+    ): void
+    /** [CanvasContext.beginPath()](CanvasContext.beginPath.md)
      *
-     *   属性值   |  类型     |  说明
-     * -----------|-----------|------------------
-     *   x1       |  Number   |第一个控制点的 x 轴坐标
-     *   y1       |  Number   |第一个控制点的 y 轴坐标
-     *   x2       |  Number   |第二个控制点的 x 轴坐标
-     *   y2       |  Number   |第二个控制点的 y 轴坐标
-     *   radius   |  Number   |  圆弧的半径
+     * 开始创建一个路径。需要调用 `fill` 或者 `stroke` 才会使用路径进行填充或描边
      *
-     * **语法：**
+     *   - 在最开始的时候相当于调用了一次 `beginPath`。
+     *   - 同一个路径内的多次 `setFillStyle`、`setStrokeStyle`、`setLineWidth`等设置，以最后一次设置为准。
      *
-     *     ```javascript
-     *     canvasContext.arcTo(x1, y1, x2, y2, radius)
-     *     ```
-     */
-    arcTo(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
+     * **示例代码**
      *
-     * **定义：**
      *
-     * 给定的 (x, y) 位置绘制文本描边的方法
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // begin path
+   ctx.rect(10, 10, 100, 30)
+   ctx.setFillStyle('yellow')
+   ctx.fill()
+   // begin another path
+   ctx.beginPath()
+   ctx.rect(10, 40, 100, 30)
+   // only fill this rect, not in current path
+   ctx.setFillStyle('blue')
+   ctx.fillRect(10, 70, 100, 30)
+   ctx.rect(10, 100, 100, 30)
+   // it will fill current path
+   ctx.setFillStyle('red')
+   ctx.fill()
+   ctx.draw()
+   ```
      *
-     * **参数：**
+     * ![] */
+    beginPath(): void
+    /** [CanvasContext.bezierCurveTo()](CanvasContext.bezierCurveTo.md)
      *
-     *   属性值     |  类型     |  说明
-     * -------------|-----------|-----------------
-     *   text       |  String   |  要绘制的文本
-     *   x          |  Number   |文本起始点的 x 轴坐标
-     *   y          |  Number   |文本起始点的 y 轴坐标
-     *   maxWidth   |  Number   |需要绘制的最大宽度，可选
+     * 创建三次方贝塞尔曲线路径。曲线的起始点为路径中前一个点。
      *
-     * **语法：**
+     * **示例代码**
      *
-     *     ```javascript
-     *     canvasContext.strokeText(text, x, y, maxWidth)
-     *     ```
-     */
-    strokeText(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
      *
-     * **定义：**
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // Draw points
+   ctx.beginPath()
+   ctx.arc(20, 20, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('red')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.arc(200, 20, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('lightgreen')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.arc(20, 100, 2, 0, 2   Math.PI)
+   ctx.arc(200, 100, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('blue')
+   ctx.fill()
+   ctx.setFillStyle('black')
+   ctx.setFontSize(12)
+   // Draw guides
+   ctx.beginPath()
+   ctx.moveTo(20, 20)
+   ctx.lineTo(20, 100)
+   ctx.lineTo(150, 75)
+   ctx.moveTo(200, 20)
+   ctx.lineTo(200, 100)
+   ctx.lineTo(70, 75)
+   ctx.setStrokeStyle('#AAAAAA')
+   ctx.stroke()
+   // Draw quadratic curve
+   ctx.beginPath()
+   ctx.moveTo(20, 20)
+   ctx.bezierCurveTo(20, 100, 200, 100, 200, 20)
+   ctx.setStrokeStyle('black')
+   ctx.stroke()
+   ctx.draw()
+   ```
      *
-     * 设置虚线偏移量的属性
+     * ![]
      *
-     * **参数：**
+     * 针对 moveTo(20, 20) bezierCurveTo(20, 100, 200, 100, 200, 20) 的三个关键坐标如下：
      *
-     *   属性值  |  类型     |  说明
-     * ----------|-----------|---------------
-     *   value   |  Number   |偏移量，初始值为 0
+     * - 红色：起始点(20, 20)
+     * - 蓝色：两个控制点(20, 100) (200, 100)
+     * - 绿色：终止点(200, 20) */
+    bezierCurveTo(): void
+    /** [CanvasContext.clearRect(number x, number y, number width, number height)](CanvasContext.clearRect.md)
      *
-     * **语法：**
+     * 清除画布上在该矩形区域内的内容
      *
-     *     ```javascript
-     *     canvasContext.lineDashOffset = value
-     *     ```
-     */
-    lineDashOffset(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
+     * **示例代码**
      *
-     * **定义：**
+     *
+     * clearRect 并非画一个白色的矩形在地址区域，而是清空，为了有直观感受，对 canvas 加了一层背景色。
+   ```html
+   <canvas canvas-id="myCanvas" style="border: 1px solid; background: #123456;"/>
+   ```
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.fillRect(0, 0, 150, 200)
+   ctx.setFillStyle('blue')
+   ctx.fillRect(150, 0, 150, 200)
+   ctx.clearRect(10, 10, 150, 75)
+   ctx.draw()
+   ```
+     * ![] */
+    clearRect(
+      /** 矩形路径左上角的横坐标 */
+      x: number,
+      /** 矩形路径左上角的纵坐标 */
+      y: number,
+      /** 矩形路径的宽度 */
+      width: number,
+      /** 矩形路径的高度 */
+      height: number
+    ): void
+    /** [CanvasContext.clip()](CanvasContext.clip.md)
+     *
+     * 从原始画布中剪切任意形状和尺寸。一旦剪切了某个区域，则所有之后的绘图都会被限制在被剪切的区域内（不能访问画布上的其他区域）。可以在使用 `clip` 方法前通过使用 `save` 方法对当前画布区域进行保存，并在以后的任意时间通过`restore`方法对其进行恢复。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   wx.downloadFile({
+   url: 'http://is5.mzstatic.com/image/thumb/Purple128/v4/75/3b/90/753b907c-b7fb-5877-215a-759bd73691a4/source/50x50bb.jpg',
+   success: function(res) {
+   ctx.save()
+   ctx.beginPath()
+   ctx.arc(50, 50, 25, 0, 2 Math.PI)
+   ctx.clip()
+   ctx.drawImage(res.tempFilePath, 25, 25)
+   ctx.restore()
+   ctx.draw()
+   }
+   })
+   ```
+     * ![]
+     *
+     * 最低基础库： `1.6.0` */
+    clip(): void
+    /** [CanvasContext.closePath()](CanvasContext.closePath.md)
+     *
+     * 关闭一个路径。会连接起点和终点。如果关闭路径后没有调用 `fill` 或者 `stroke` 并开启了新的路径，那之前的路径将不会被渲染。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.moveTo(10, 10)
+   ctx.lineTo(100, 10)
+   ctx.lineTo(100, 100)
+   ctx.closePath()
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![]
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // begin path
+   ctx.rect(10, 10, 100, 30)
+   ctx.closePath()
+   // begin another path
+   ctx.beginPath()
+   ctx.rect(10, 40, 100, 30)
+   // only fill this rect, not in current path
+   ctx.setFillStyle('blue')
+   ctx.fillRect(10, 70, 100, 30)
+   ctx.rect(10, 100, 100, 30)
+   // it will fill current path
+   ctx.setFillStyle('red')
+   ctx.fill()
+   ctx.draw()
+   ```
+     *
+     * ![] */
+    closePath(): void
+    /** [CanvasContext.createPattern(string image, string repetition)](CanvasContext.createPattern.md)
      *
      * 对指定的图像创建模式的方法，可在指定的方向上重复元图像
      *
-     * **参数：**
+     * 最低基础库： `1.9.90` */
+    createPattern(
+      /** 重复的图像源，仅支持包内路径和临时路径 */
+      image: string,
+      /** 如何重复图像 */
+      repetition: string
+    ): void
+    /** [CanvasContext.draw(boolean reserve, function callback)](CanvasContext.draw.md)
      *
-     *   属性值       |  类型     |  说明
-     * ---------------|-----------|---------------------------------------------------------
-     *   image        |  String   |  重复的图像源，仅支持包内路径和临时路径
-     *   repetition   |  String   |指定如何重复图像，有效值有: repeat, repeat-x, repeat-y, no-repeat
+     * 将之前在绘图上下文中的描述（路径、变形、样式）画到 canvas 中。
      *
-     * **语法：**
+     * **示例代码**
      *
-     *     ```javascript
-     *     canvasContext.createPattern(image, repetition)
-     *     ```
      *
-     * **例子：**
+     * 第二次 draw() reserve 为 true。所以保留了上一次的绘制结果，在上下文设置的 fillStyle 'red' 也变成了默认的 'black'。
      *
-     *     ```javascript
-     *     const ctx = Taro.createCanvasContext('myCanvas')
-     *     const pattern = ctx.createPattern('/path/to/image', 'repeat-x')
-     *     ctx.fillStyle = pattern
-     *     ctx.fillRect(0, 0, 300, 150)
-     *     ctx.draw()
-     *     ```
-     */
-    createPattern(): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 100)
+   ctx.draw()
+   ctx.fillRect(50, 50, 150, 100)
+   ctx.draw(true)
+   ```
+     * ![]
      *
-     * **定义：**
+     * **示例代码**
      *
-     * 设置当前字体样式的属性
      *
-     * **参数：**
+     * 第二次 draw() reserve 为 false。所以没有保留了上一次的绘制结果和在上下文设置的 fillStyle 'red'。
      *
-     *   属性值  |  类型     |  说明
-     * ----------|-----------|-----------------------------------------------------------------------
-     *   value   |  String   |符合 CSS font 语法的 DOMString 字符串，至少需要提供字体大小和字体族名。默认值为 10px sans-serif
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 100)
+   ctx.draw()
+   ctx.fillRect(50, 50, 150, 100)
+   ctx.draw()
+   ```
+     * ![] */
+    draw(
+      /** 本次绘制是否接着上一次绘制。即 reserve 参数为 false，则在本次调用绘制之前 native 层会先清空画布再继续绘制；若 reserve 参数为 true，则保留当前画布上的内容，本次调用 drawCanvas 绘制的内容覆盖在上面，默认 false。 */
+      reserve?: boolean,
+      /** 绘制完成后执行的回调函数 */
+      callback?: Function
+    ): void
+    /** [CanvasContext.drawImage(string imageResource, number sx, number sy, number sWidth, number sHeight, number dx, number dy, number dWidth, number dHeight)](CanvasContext.drawImage.md)
      *
-     * **value 支持的属性有：**
+     * 绘制图像到画布
      *
-     *   属性     |  说明
-     * -----------|-------------------------------------
-     *   style    |字体样式。仅支持 italic, oblique, normal
-     *   weight   |  字体粗细。仅支持 normal, bold
-     *   size     |  字体大小
-     *   family   | 字体族名。注意确认各平台所支持的字体
+     * **示例代码**
      *
-     * **语法：**
      *
-     *     ```javascript
-     *     canvasContext.font = value
-     *     ```
-     */
-    font(style: any, weight: any, size: any, family: any): void
-    /**
-     * > 基础库 1.9.90 开始支持，低版本需做[兼容处理](https://developers.weixin.qq.com/miniprogram/dev/framework/compatibility.html)
      *
-     * **定义：**
+     * 有三个版本的写法：
+     *
+     * - drawImage(imageResource, dx, dy)
+     * - drawImage(imageResource, dx, dy, dWidth, dHeight)
+     * - drawImage(imageResource, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight) 从 1.9.0 起支持
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   wx.chooseImage({
+   success: function(res){
+   ctx.drawImage(res.tempFilePaths[0], 0, 0, 150, 100)
+   ctx.draw()
+   }
+   })
+   ```
+     * ![] */
+    drawImage(
+      /** 所要绘制的图片资源 */
+      imageResource: string,
+      /** 图像的左上角在目标 canvas 上 x 轴的位置 */
+      dx: number,
+      /** 图像的左上角在目标 canvas 上 y 轴的位置 */
+      dy: number
+    ): void
+
+    drawImage(
+      /** 所要绘制的图片资源 */
+      imageResource: string,
+      /** 图像的左上角在目标 canvas 上 x 轴的位置 */
+      dx: number,
+      /** 图像的左上角在目标 canvas 上 y 轴的位置 */
+      dy: number,
+      /** 在目标画布上绘制图像的宽度，允许对绘制的图像进行缩放 */
+      dWidth: number,
+      /** 在目标画布上绘制图像的高度，允许对绘制的图像进行缩放 */
+      dHeight: number
+    ): void
+
+    drawImage(
+      /** 所要绘制的图片资源 */
+      imageResource: string,
+      /** 源图像的矩形选择框的左上角 x 坐标 */
+      sx: number,
+      /** 源图像的矩形选择框的左上角 y 坐标 */
+      sy: number,
+      /** 源图像的矩形选择框的宽度 */
+      sWidth: number,
+      /** 源图像的矩形选择框的高度 */
+      sHeight: number,
+      /** 图像的左上角在目标 canvas 上 x 轴的位置 */
+      dx: number,
+      /** 图像的左上角在目标 canvas 上 y 轴的位置 */
+      dy: number,
+      /** 在目标画布上绘制图像的宽度，允许对绘制的图像进行缩放 */
+      dWidth: number,
+      /** 在目标画布上绘制图像的高度，允许对绘制的图像进行缩放 */
+      dHeight: number
+    ): void
+    /** [CanvasContext.fill()](CanvasContext.fill.md)
+     *
+     * 对当前路径中的内容进行填充。默认的填充色为黑色。
+     *
+     * **示例代码**
+     *
+     *
+     *
+     * 如果当前路径没有闭合，fill() 方法会将起点和终点进行连接，然后填充。
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.moveTo(10, 10)
+   ctx.lineTo(100, 10)
+   ctx.lineTo(100, 100)
+   ctx.fill()
+   ctx.draw()
+   ```
+     *
+     * fill() 填充的的路径是从 beginPath() 开始计算，但是不会将 fillRect() 包含进去。
+     *
+     * ![]
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // begin path
+   ctx.rect(10, 10, 100, 30)
+   ctx.setFillStyle('yellow')
+   ctx.fill()
+   // begin another path
+   ctx.beginPath()
+   ctx.rect(10, 40, 100, 30)
+   // only fill this rect, not in current path
+   ctx.setFillStyle('blue')
+   ctx.fillRect(10, 70, 100, 30)
+   ctx.rect(10, 100, 100, 30)
+   // it will fill current path
+   ctx.setFillStyle('red')
+   ctx.fill()
+   ctx.draw()
+   ```
+     *
+     * ![] */
+    fill(): void
+    /** [CanvasContext.fillRect(number x, number y, number width, number height)](CanvasContext.fillRect.md)
+     *
+     * 填充一个矩形。用 [`setFillStyle`] 设置矩形的填充色，如果没设置默认是黑色。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 75)
+   ctx.draw()
+   ```
+     * ![] */
+    fillRect(
+      /** 矩形路径左上角的横坐标 */
+      x: number,
+      /** 矩形路径左上角的纵坐标 */
+      y: number,
+      /** 矩形路径的宽度 */
+      width: number,
+      /** 矩形路径的高度 */
+      height: number
+    ): void
+    /** [CanvasContext.fillText(string text, number x, number y, number maxWidth)](CanvasContext.fillText.md)
+     *
+     * 在画布上绘制被填充的文本
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFontSize(20)
+   ctx.fillText('Hello', 20, 20)
+   ctx.fillText('MINA', 100, 100)
+   ctx.draw()
+   ```
+     * ![] */
+    fillText(
+      /** 在画布上输出的文本 */
+      text: string,
+      /** 绘制文本的左上角 x 坐标位置 */
+      x: number,
+      /** 绘制文本的左上角 y 坐标位置 */
+      y: number,
+      /** 需要绘制的最大宽度，可选 */
+      maxWidth?: number
+    ): void
+    /** [CanvasContext.lineTo(number x, number y)](CanvasContext.lineTo.md)
+     *
+     * 增加一个新点，然后创建一条从上次指定点到目标点的线。用 `stroke` 方法来画线条
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.moveTo(10, 10)
+   ctx.rect(10, 10, 100, 50)
+   ctx.lineTo(110, 60)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![] */
+    lineTo(
+      /** 目标位置的 x 坐标 */
+      x: number,
+      /** 目标位置的 y 坐标 */
+      y: number
+    ): void
+    /** [CanvasContext.moveTo(number x, number y)](CanvasContext.moveTo.md)
+     *
+     * 把路径移动到画布中的指定点，不创建线条。用 `stroke` 方法来画线条
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.moveTo(10, 10)
+   ctx.lineTo(100, 10)
+   ctx.moveTo(10, 50)
+   ctx.lineTo(100, 50)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![] */
+    moveTo(
+      /** 目标位置的 x 坐标 */
+      x: number,
+      /** 目标位置的 y 坐标 */
+      y: number
+    ): void
+    /** [CanvasContext.quadraticCurveTo(number cpx, number cpy, number x, number y)](CanvasContext.quadraticCurveTo.md)
+     *
+     * 创建二次贝塞尔曲线路径。曲线的起始点为路径中前一个点。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // Draw points
+   ctx.beginPath()
+   ctx.arc(20, 20, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('red')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.arc(200, 20, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('lightgreen')
+   ctx.fill()
+   ctx.beginPath()
+   ctx.arc(20, 100, 2, 0, 2   Math.PI)
+   ctx.setFillStyle('blue')
+   ctx.fill()
+   ctx.setFillStyle('black')
+   ctx.setFontSize(12)
+   // Draw guides
+   ctx.beginPath()
+   ctx.moveTo(20, 20)
+   ctx.lineTo(20, 100)
+   ctx.lineTo(200, 20)
+   ctx.setStrokeStyle('#AAAAAA')
+   ctx.stroke()
+   // Draw quadratic curve
+   ctx.beginPath()
+   ctx.moveTo(20, 20)
+   ctx.quadraticCurveTo(20, 100, 200, 20)
+   ctx.setStrokeStyle('black')
+   ctx.stroke()
+   ctx.draw()
+   ```
+     *
+     * ![]
+     *
+     * 针对 moveTo(20, 20) quadraticCurveTo(20, 100, 200, 20) 的三个关键坐标如下：
+     *
+     * - 红色：起始点(20, 20)
+     * - 蓝色：控制点(20, 100)
+     * - 绿色：终止点(200, 20) */
+    quadraticCurveTo(
+      /** 贝塞尔控制点的 x 坐标 */
+      cpx: number,
+      /** 贝塞尔控制点的 y 坐标 */
+      cpy: number,
+      /** 结束点的 x 坐标 */
+      x: number,
+      /** 结束点的 y 坐标 */
+      y: number
+    ): void
+    /** [CanvasContext.rect(number x, number y, number width, number height)](CanvasContext.rect.md)
+     *
+     * 创建一个矩形路径。需要用 [`fill`] 方法将矩形真正的画到 `canvas` 中
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.rect(10, 10, 150, 75)
+   ctx.setFillStyle('red')
+   ctx.fill()
+   ctx.draw()
+   ```
+     * ![] */
+    rect(
+      /** 矩形路径左上角的横坐标 */
+      x: number,
+      /** 矩形路径左上角的纵坐标 */
+      y: number,
+      /** 矩形路径的宽度 */
+      width: number,
+      /** 矩形路径的高度 */
+      height: number
+    ): void
+    /** [CanvasContext.restore()](CanvasContext.restore.md)
+     *
+     * 恢复之前保存的绘图上下文。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // save the default fill style
+   ctx.save()
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 100)
+   // restore to the previous saved state
+   ctx.restore()
+   ctx.fillRect(50, 50, 150, 100)
+   ctx.draw()
+   ```
+     * ![] */
+    restore(): void
+    /** [CanvasContext.rotate(number rotate)](CanvasContext.rotate.md)
+     *
+     * 以原点为中心顺时针旋转当前坐标轴。多次调用旋转的角度会叠加。原点可以用 `translate` 方法修改。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.strokeRect(100, 10, 150, 100)
+   ctx.rotate(20   Math.PI / 180)
+   ctx.strokeRect(100, 10, 150, 100)
+   ctx.rotate(20   Math.PI / 180)
+   ctx.strokeRect(100, 10, 150, 100)
+   ctx.draw()
+   ```
+     * ![] */
+    rotate(
+      /** 旋转角度，以弧度计 degrees * Math.PI/180；degrees 范围为 0-360 */
+      rotate: number
+    ): void
+    /** [CanvasContext.save()](CanvasContext.save.md)
+     *
+     * 保存绘图上下文。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // save the default fill style
+   ctx.save()
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 100)
+   // restore to the previous saved state
+   ctx.restore()
+   ctx.fillRect(50, 50, 150, 100)
+   ctx.draw()
+   ```
+     * ![] */
+    save(): void
+    /** [CanvasContext.scale(number scaleWidth, number scaleHeight)](CanvasContext.scale.md)
+     *
+     * 在调用后，之后创建的路径其横纵坐标会被缩放。多次调用倍数会相乘。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.strokeRect(10, 10, 25, 15)
+   ctx.scale(2, 2)
+   ctx.strokeRect(10, 10, 25, 15)
+   ctx.scale(2, 2)
+   ctx.strokeRect(10, 10, 25, 15)
+   ctx.draw()
+   ```
+     * ![] */
+    scale(
+      /** 横坐标缩放的倍数 (1 = 100%，0.5 = 50%，2 = 200%) */
+      scaleWidth: number,
+      /** 纵坐标轴缩放的倍数 (1 = 100%，0.5 = 50%，2 = 200%) */
+      scaleHeight: number
+    ): void
+    /** [CanvasContext.setFillStyle([Color] color)](CanvasContext.setFillStyle.md)
+     *
+     * 设置填充色。
+     *
+     * **代码示例**
+     *
+     *
+   ```js
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 75)
+   ctx.draw()
+   ```
+     * ![] */
+    setFillStyle(
+      /** [Color]
+       *
+       * 填充的颜色，默认颜色为 black。 */
+      color: Color
+    ): void
+    /** [CanvasContext.setFontSize(number fontSize)](CanvasContext.setFontSize.md)
+     *
+     * 设置字体的字号
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFontSize(20)
+   ctx.fillText('20', 20, 20)
+   ctx.setFontSize(30)
+   ctx.fillText('30', 40, 40)
+   ctx.setFontSize(40)
+   ctx.fillText('40', 60, 60)
+   ctx.setFontSize(50)
+   ctx.fillText('50', 90, 90)
+   ctx.draw()
+   ```
+     * ![] */
+    setFontSize(
+      /** 字体的字号 */
+      fontSize: number
+    ): void
+    /** [CanvasContext.setGlobalAlpha(number alpha)](CanvasContext.setGlobalAlpha.md)
+     *
+     * 设置全局画笔透明度。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.fillRect(10, 10, 150, 100)
+   ctx.setGlobalAlpha(0.2)
+   ctx.setFillStyle('blue')
+   ctx.fillRect(50, 50, 150, 100)
+   ctx.setFillStyle('yellow')
+   ctx.fillRect(100, 100, 150, 100)
+   ctx.draw()
+   ```
+     * ![] */
+    setGlobalAlpha(
+      /** 透明度。范围 0-1，0 表示完全透明，1 表示完全不透明。 */
+      alpha: number
+    ): void
+    /** [CanvasContext.setLineCap(string lineCap)](CanvasContext.setLineCap.md)
+     *
+     * 设置线条的端点样式
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.beginPath()
+   ctx.moveTo(10, 10)
+   ctx.lineTo(150, 10)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineCap('butt')
+   ctx.setLineWidth(10)
+   ctx.moveTo(10, 30)
+   ctx.lineTo(150, 30)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineCap('round')
+   ctx.setLineWidth(10)
+   ctx.moveTo(10, 50)
+   ctx.lineTo(150, 50)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineCap('square')
+   ctx.setLineWidth(10)
+   ctx.moveTo(10, 70)
+   ctx.lineTo(150, 70)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![] */
+    setLineCap(
+      /** 线条的结束端点样式 */
+      lineCap: string
+    ): void
+    /** [CanvasContext.setLineDash(Array.<number> pattern, number offset)](CanvasContext.setLineDash.md)
+     *
+     * 设置虚线样式。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setLineDash([10, 20], 5);
+   ctx.beginPath();
+   ctx.moveTo(0,100);
+   ctx.lineTo(400, 100);
+   ctx.stroke();
+   ctx.draw()
+   ```
+     * ![]
+     *
+     * 最低基础库： `1.6.0` */
+    setLineDash(
+      /** 一组描述交替绘制线段和间距（坐标空间单位）长度的数字 */
+      pattern: Array<number>,
+      /** 虚线偏移量 */
+      offset: number
+    ): void
+    /** [CanvasContext.setLineJoin(string lineJoin)](CanvasContext.setLineJoin.md)
+     *
+     * 设置线条的交点样式
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.beginPath()
+   ctx.moveTo(10, 10)
+   ctx.lineTo(100, 50)
+   ctx.lineTo(10, 90)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineJoin('bevel')
+   ctx.setLineWidth(10)
+   ctx.moveTo(50, 10)
+   ctx.lineTo(140, 50)
+   ctx.lineTo(50, 90)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineJoin('round')
+   ctx.setLineWidth(10)
+   ctx.moveTo(90, 10)
+   ctx.lineTo(180, 50)
+   ctx.lineTo(90, 90)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineJoin('miter')
+   ctx.setLineWidth(10)
+   ctx.moveTo(130, 10)
+   ctx.lineTo(220, 50)
+   ctx.lineTo(130, 90)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![] */
+    setLineJoin(
+      /** 线条的结束交点样式 */
+      lineJoin: string
+    ): void
+    /** [CanvasContext.setLineWidth(number lineWidth)](CanvasContext.setLineWidth.md)
+     *
+     * 设置线条的宽度
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.beginPath()
+   ctx.moveTo(10, 10)
+   ctx.lineTo(150, 10)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineWidth(5)
+   ctx.moveTo(10, 30)
+   ctx.lineTo(150, 30)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineWidth(10)
+   ctx.moveTo(10, 50)
+   ctx.lineTo(150, 50)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineWidth(15)
+   ctx.moveTo(10, 70)
+   ctx.lineTo(150, 70)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     *
+     * ![] */
+    setLineWidth(
+      /** 线条的宽度，单位px */
+      lineWidth: number
+    ): void
+    /** [CanvasContext.setMiterLimit(number miterLimit)](CanvasContext.setMiterLimit.md)
+     *
+     * 设置最大斜接长度。斜接长度指的是在两条线交汇处内角和外角之间的距离。当 [CanvasContext.setLineJoin()] 为 miter 时才有效。超过最大倾斜长度的，连接处将以 lineJoin 为 bevel 来显示。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.beginPath()
+   ctx.setLineWidth(10)
+   ctx.setLineJoin('miter')
+   ctx.setMiterLimit(1)
+   ctx.moveTo(10, 10)
+   ctx.lineTo(100, 50)
+   ctx.lineTo(10, 90)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineWidth(10)
+   ctx.setLineJoin('miter')
+   ctx.setMiterLimit(2)
+   ctx.moveTo(50, 10)
+   ctx.lineTo(140, 50)
+   ctx.lineTo(50, 90)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineWidth(10)
+   ctx.setLineJoin('miter')
+   ctx.setMiterLimit(3)
+   ctx.moveTo(90, 10)
+   ctx.lineTo(180, 50)
+   ctx.lineTo(90, 90)
+   ctx.stroke()
+   ctx.beginPath()
+   ctx.setLineWidth(10)
+   ctx.setLineJoin('miter')
+   ctx.setMiterLimit(4)
+   ctx.moveTo(130, 10)
+   ctx.lineTo(220, 50)
+   ctx.lineTo(130, 90)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![] */
+    setMiterLimit(
+      /** 最大斜接长度 */
+      miterLimit: number
+    ): void
+    /** [CanvasContext.setShadow(number offsetX, number offsetY, number blur, string color)](CanvasContext.setShadow.md)
+     *
+     * 设定阴影样式。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setFillStyle('red')
+   ctx.setShadow(10, 50, 50, 'blue')
+   ctx.fillRect(10, 10, 150, 75)
+   ctx.draw()
+   ```
+     * ![] */
+    setShadow(
+      /** 阴影相对于形状在水平方向的偏移，默认值为 0。 */
+      offsetX: number,
+      /** 阴影相对于形状在竖直方向的偏移，默认值为 0。 */
+      offsetY: number,
+      /** 阴影的模糊级别，数值越大越模糊。范围 0- 100。，默认值为 0。 */
+      blur: number,
+      /** 阴影的颜色。默认值为 black。 */
+      color: string
+    ): void
+    /** [CanvasContext.setStrokeStyle([Color] color)](CanvasContext.setStrokeStyle.md)
+     *
+     * 设置描边颜色。
+     *
+     * **代码示例**
+     *
+     *
+   ```js
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setStrokeStyle('red')
+   ctx.strokeRect(10, 10, 150, 75)
+   ctx.draw()
+   ```
+     * ![] */
+    setStrokeStyle(
+      /** [Color]
+       *
+       * 描边的颜色，默认颜色为 black。 */
+      color: Color
+    ): void
+    /** [CanvasContext.setTextAlign(string align)](CanvasContext.setTextAlign.md)
+     *
+     * 设置文字的对齐
+     *
+     * **示例代码**
+     *
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setStrokeStyle('red')
+   ctx.moveTo(150, 20)
+   ctx.lineTo(150, 170)
+   ctx.stroke()
+   ctx.setFontSize(15)
+   ctx.setTextAlign('left')
+   ctx.fillText('textAlign=left', 150, 60)
+   ctx.setTextAlign('center')
+   ctx.fillText('textAlign=center', 150, 80)
+   ctx.setTextAlign('right')
+   ctx.fillText('textAlign=right', 150, 100)
+   ctx.draw()
+   ```
+     *
+     * ![]
+     *
+     * 最低基础库： `1.1.0` */
+    setTextAlign(
+      /** 文字的对齐方式 */
+      align: string
+    ): void
+    /** [CanvasContext.setTextBaseline(string textBaseline)](CanvasContext.setTextBaseline.md)
+     *
+     * 设置文字的竖直对齐
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setStrokeStyle('red')
+   ctx.moveTo(5, 75)
+   ctx.lineTo(295, 75)
+   ctx.stroke()
+   ctx.setFontSize(20)
+   ctx.setTextBaseline('top')
+   ctx.fillText('top', 5, 75)
+   ctx.setTextBaseline('middle')
+   ctx.fillText('middle', 50, 75)
+   ctx.setTextBaseline('bottom')
+   ctx.fillText('bottom', 120, 75)
+   ctx.setTextBaseline('normal')
+   ctx.fillText('normal', 200, 75)
+   ctx.draw()
+   ```
+     * ![]
+     *
+     * 最低基础库： `1.4.0` */
+    setTextBaseline(
+      /** 文字的竖直对齐方式 */
+      textBaseline: string
+    ): void
+    /** [CanvasContext.setTransform(number scaleX, number scaleY, number skewX, number skewY, number translateX, number translateY)](CanvasContext.setTransform.md)
      *
      * 使用矩阵重新设置（覆盖）当前变换的方法
      *
-     * **参数：**
+     * 最低基础库： `1.9.90` */
+    setTransform(
+      /** 水平缩放 */
+      scaleX: number,
+      /** 垂直缩放 */
+      scaleY: number,
+      /** 水平倾斜 */
+      skewX: number,
+      /** 垂直倾斜 */
+      skewY: number,
+      /** 水平移动 */
+      translateX: number,
+      /** 垂直移动 */
+      translateY: number
+    ): void
+    /** [CanvasContext.stroke()](CanvasContext.stroke.md)
      *
-     *   属性值       |  类型     |  说明
-     * ---------------|-----------|---------
-     *   scaleX       |  Number   | 水平缩放
-     *   skewX        |  Number   | 水平倾斜
-     *   skewY        |  Number   | 垂直倾斜
-     *   scaleY       |  Number   | 垂直缩放
-     *   translateX   |  Number   | 水平移动
-     *   translateY   |  Number   | 垂直移动
+     * 画出当前路径的边框。默认颜色色为黑色。
      *
-     * **语法：**
+     * **示例代码**
      *
-     *     ```javascript
-     *     canvasContext.setTransform(scaleX, skewX, skewY, scaleY, translateX, translateY)
-     *     ```
-     */
-    setTransform(): void
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.moveTo(10, 10)
+   ctx.lineTo(100, 10)
+   ctx.lineTo(100, 100)
+   ctx.stroke()
+   ctx.draw()
+   ```
+     * ![]
+     *
+     * stroke() 描绘的的路径是从 beginPath() 开始计算，但是不会将 strokeRect() 包含进去。
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // begin path
+   ctx.rect(10, 10, 100, 30)
+   ctx.setStrokeStyle('yellow')
+   ctx.stroke()
+   // begin another path
+   ctx.beginPath()
+   ctx.rect(10, 40, 100, 30)
+   // only stoke this rect, not in current path
+   ctx.setStrokeStyle('blue')
+   ctx.strokeRect(10, 70, 100, 30)
+   ctx.rect(10, 100, 100, 30)
+   // it will stroke current path
+   ctx.setStrokeStyle('red')
+   ctx.stroke()
+   ctx.draw()
+   ```
+     *
+     * ![] */
+    stroke(): void
+    /** [CanvasContext.strokeRect(number x, number y, number width, number height)](CanvasContext.strokeRect.md)
+     *
+     * 画一个矩形(非填充)。 用 [`setStrokeStyle`] 设置矩形线条的颜色，如果没设置默认是黑色。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.setStrokeStyle('red')
+   ctx.strokeRect(10, 10, 150, 75)
+   ctx.draw()
+   ```
+     * ![] */
+    strokeRect(
+      /** 矩形路径左上角的横坐标 */
+      x: number,
+      /** 矩形路径左上角的纵坐标 */
+      y: number,
+      /** 矩形路径的宽度 */
+      width: number,
+      /** 矩形路径的高度 */
+      height: number
+    ): void
+    /** [CanvasContext.strokeText(string text, number x, number y, number maxWidth)](CanvasContext.strokeText.md)
+     *
+     * 给定的 (x, y) 位置绘制文本描边的方法
+     *
+     * 最低基础库： `1.9.90` */
+    strokeText(
+      /** 要绘制的文本 */
+      text: string,
+      /** 文本起始点的 x 轴坐标 */
+      x: number,
+      /** 文本起始点的 y 轴坐标 */
+      y: number,
+      /** 需要绘制的最大宽度，可选 */
+      maxWidth?: number
+    ): void
+    /** [CanvasContext.transform(number scaleX, number scaleY, number skewX, number skewY, number translateX, number translateY)](CanvasContext.transform.md)
+     *
+     * 使用矩阵多次叠加当前变换的方法
+     *
+     * 最低基础库： `1.9.90` */
+    transform(
+      /** 水平缩放 */
+      scaleX: number,
+      /** 垂直缩放 */
+      scaleY: number,
+      /** 水平倾斜 */
+      skewX: number,
+      /** 垂直倾斜 */
+      skewY: number,
+      /** 水平移动 */
+      translateX: number,
+      /** 垂直移动 */
+      translateY: number
+    ): void
+    /** [CanvasContext.translate(number x, number y)](CanvasContext.translate.md)
+     *
+     * 对当前坐标系的原点 (0, 0) 进行变换。默认的坐标系原点为页面左上角。
+     *
+     * **示例代码**
+     *
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   ctx.strokeRect(10, 10, 150, 100)
+   ctx.translate(20, 20)
+   ctx.strokeRect(10, 10, 150, 100)
+   ctx.translate(20, 20)
+   ctx.strokeRect(10, 10, 150, 100)
+   ctx.draw()
+   ```
+     *
+     * ![] */
+    translate(
+      /** 水平坐标平移量 */
+      x: number,
+      /** 竖直坐标平移量 */
+      y: number
+    ): void
+    /** [Object CanvasContext.measureText(string text)](CanvasContext.measureText.md)
+     *
+     * 测量文本尺寸信息。目前仅返回文本宽度。同步接口。
+     *
+     * 最低基础库： `1.9.90` */
+    measureText(
+      /** 要测量的文本 */
+      text: string
+    ): TextMetrics
+    /** [[CanvasGradient] CanvasContext.createCircularGradient(number x, number y, number r)](CanvasContext.createCircularGradient.md)
+     *
+     * 创建一个圆形的渐变颜色。起点在圆心，终点在圆环。返回的`CanvasGradient`对象需要使用 [CanvasGradient.addColorStop()] 来指定渐变点，至少要两个。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // Create circular gradient
+   const grd = ctx.createCircularGradient(75, 50, 50)
+   grd.addColorStop(0, 'red')
+   grd.addColorStop(1, 'white')
+   // Fill with gradient
+   ctx.setFillStyle(grd)
+   ctx.fillRect(10, 10, 150, 80)
+   ctx.draw()
+   ```
+     * ![] */
+    createCircularGradient(
+      /** 圆心的 x 坐标 */
+      x: number,
+      /** 圆心的 y 坐标 */
+      y: number,
+      /** 圆的半径 */
+      r: number
+    ): CanvasGradient
+    /** [[CanvasGradient] CanvasContext.createLinearGradient(number x0, number y0, number x1, number y1)](CanvasContext.createLinearGradient.md)
+     *
+     * 创建一个线性的渐变颜色。返回的`CanvasGradient`对象需要使用 [CanvasGradient.addColorStop()] 来指定渐变点，至少要两个。
+     *
+     * **示例代码**
+     *
+     *
+   ```javascript
+   const ctx = wx.createCanvasContext('myCanvas')
+   // Create linear gradient
+   const grd = ctx.createLinearGradient(0, 0, 200, 0)
+   grd.addColorStop(0, 'red')
+   grd.addColorStop(1, 'white')
+   // Fill with gradient
+   ctx.setFillStyle(grd)
+   ctx.fillRect(10, 10, 150, 80)
+   ctx.draw()
+   ```
+     * ![] */
+    createLinearGradient(
+      /** 起点的 x 坐标 */
+      x0: number,
+      /** 起点的 y 坐标 */
+      y0: number,
+      /** 终点的 x 坐标 */
+      x1: number,
+      /** 终点的 y 坐标 */
+      y1: number
+    ): CanvasGradient
   }
-
 
   interface Page {
     /**
@@ -10833,4 +11716,830 @@ declare namespace Taro {
 
   function getCurrentPages(): Page[]
   function getApp(): any
+
+  namespace getLaunchOptionsSync {
+    interface Return {
+      /**
+       * 启动小程序的路径
+       */
+      path: string
+      /**
+       * 启动小程序的[场景值](https://developers.weixin.qq.com/miniprogram/dev/framework/app-service/scene.html)
+       */
+      scene: number
+      /**
+       * 启动小程序的 query 参数
+       */
+      query: { [k: string]: any }
+      /**
+       * shareTicket，详见[获取更多转发信息](https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/share.html)
+       */
+      shareTicket: string
+      /**
+       * 来源信息。从另一个小程序、公众号或 App 进入小程序时返回。否则返回 {}。
+       */
+      referrerInfo: { appId: string, extraData: { [k: string]: any} }
+    }
+  }
+
+  /**
+   * @since 微信小程序 2.1.2
+   *
+   * 获取小程序启动时的参数。与 `App.onLaunch` 的回调参数一致。
+   *
+   * **注意**
+   * 部分版本在无 `referrerInfo` 的时候会返回 undefined，
+   * 建议使用 `options.referrerInfo && options.referrerInfo.appId` 进行判断。
+   *
+   * @see https://developers.weixin.qq.com/miniprogram/dev/api/base/app/life-cycle/wx.getLaunchOptionsSync.html
+   */
+  function getLaunchOptionsSync(): getLaunchOptionsSync.Return
+
+  namespace onPageNotFound {
+    /**
+     * 小程序要打开的页面不存在事件的回调函数参数
+     */
+    interface onPageNotFoundCallbackParam {
+      /**
+       * 不存在页面的路径
+       */
+      path: string,
+      /**
+       * 打开不存在页面的 query 参数
+       */
+      query: Object,
+      /**
+       * 是否本次启动的首个页面（例如从分享等入口进来，首个页面是开发者配置的分享页面）
+       */
+      isEntryPage: boolean
+    }
+    /**
+     * 小程序要打开的页面不存在事件的回调函数
+     */
+    type onPageNotFoundCallback = (parma: onPageNotFoundCallbackParam) => void
+  }
+  /**
+   * @since 微信小程序 2.1.2
+   *
+   * 监听小程序要打开的页面不存在事件。该事件与 ·App.onPageNotFound· 的回调时机一致
+   *
+   */
+  function onPageNotFound(callback: onPageNotFound.onPageNotFoundCallback): void
+
+  namespace onError {
+    interface onErrorParam {
+      /**
+       * 错误信息，包含堆栈
+       */
+      error: string
+    }
+
+    type onErrorCallback = (param: onErrorParam) => void
+  }
+  /**
+   * @since 微信小程序 2.1.2
+   *
+   * 监听小程序错误事件。如脚本错误或 API 调用报错等。该事件与 App.onError 的回调时机与参数一致
+   */
+  function onError(callback: onError.onErrorCallback): void
+
+  /**
+   * @since 微信小程序  2.6.2
+   *
+   * 监听音频中断结束事件。在收到 onAudioInterruptionBegin 事件之后，小程序内所有音频会暂停，收到此事件之后才可再次播放成功
+   */
+  function onAudioInterruptionEnd(callback: () => void): void
+
+  /**
+   * @since 微信小程序  2.6.2
+   *
+   * 监听音频因为受到系统占用而被中断开始事件。以下场景会触发此事件：闹钟、电话、FaceTime 通话、微信语音聊天、微信视频聊天。此事件触发后，小程序内所有音频会暂停
+   */
+  function onAudioInterruptionBegin(callback: () => void): void
+
+  namespace setPageInfo {
+    type Param = {
+      /**
+       * 页面标题
+       */
+      title: string
+      /**
+       * 页面关键字
+       */
+      keywords: string
+      /**
+       * 页面描述信息
+       */
+      description: string
+      /**
+       * 原始发布时间(年-月-日 时:分:秒 带有前导零）
+       */
+      releaseDate?: string
+      /**
+       * 文章(内容)标题(适用于当前页面是图文、视频类的展示形式，文章标题需要准确标识当前文章的主要信息点；至少6个字，不可以全英文。)
+       */
+      articleTitle?: string
+      /**
+       * 图片线上地址，用于信息流投放后的封面显示，最多3张，单图片最大2M；封面图建议尺寸：高>=210px & 宽>=375px；最小尺寸：高>=146px & 宽>=218px。多张图时，用数组表示
+       */
+      image?: string | Array<string>
+      /**
+       * 视频信息，多个视频时，用数组表示
+       */
+      video?: Video
+      /**
+       * 浏览信息。最低支持版本3.40.6。
+       */
+      visit?: Visit
+      /**
+       * 点赞量，若页面未统计可为空。最低支持版本3.40.6。
+       */
+      likes?: string
+      /**
+       * 评论量，若页面未统计可为空。最低支持版本3.40.6。
+       */
+      comments?: string
+      /**
+       * 收藏量，若页面未统计可为空。最低支持版本3.40.6。
+       */
+      collects?: string
+      /**
+       * 分享量，若页面未统计可为空。最低支持版本3.40.6。
+       */
+      shares?: string
+      /**
+       * 关注量，若页面未统计可为空。最低支持版本3.40.6。
+       */
+      followers?: string
+      /**
+       * 接口调用成功的回调函数
+       */
+      success?: ParamPropSuccess
+      /**
+       * 接口调用失败的回调函数
+       */
+      fail?: ParamPropFail
+      /**
+       * 接口调用结束的回调函数（调用成功、失败都会执行）
+       */
+      complete?: ParamPropComplete
+    }
+    type Video = {
+      /**
+       * 视频地址
+       */
+      url: string
+      /**
+       * 视频时长(单位为秒)
+       */
+      duration: string
+      /**
+       * 视频封面图
+       */
+      image: string
+    }
+    type Visit = {
+      /**
+       * 页面的浏览量(不去重用户）
+       */
+      pv?: string
+      /**
+       * 页面的点击量（去重用户）
+       */
+      uv?: string
+      /**
+       * 页面的用户人均停留时长，以秒为单位。
+       */
+      sessionDuration?: string
+    }
+    /**
+     * 接口调用成功的回调函数
+     */
+    type ParamPropSuccess = () => any
+    /**
+     * 接口调用失败的回调函数
+     */
+    type ParamPropFail = (err: any) => any
+    /**
+     * 接口调用结束的回调函数（调用成功、失败都会执行）
+     */
+    type ParamPropComplete = () => any
+  }
+
+  /**
+   * 百度智能小程序可接入百度搜索和百度 App，setPageInfo 负责为小程序设置各类页面基础信息，包括标题、关键字、页面描述以及图片信息、视频信息等。开发者为智能小程序设置完备的页面基础信息，有助于智能小程序在搜索引擎和信息流中得到更加有效的展示和分发。
+   */
+  function setPageInfo(OBJECT: setPageInfo.Param): void
+
+  namespace cloud {
+    interface ICloudConfig {
+      env?: string | object
+      traceUser?: boolean
+    }
+    interface IAPIError {
+      errMsg: string
+    }
+
+    interface IAPIParam<T = any> {
+      config?: ICloudConfig
+      success?: (res: T) => void
+      fail?: (err: IAPIError) => void
+      complete?: (val: T | IAPIError) => void
+    }
+
+    interface IAPISuccessParam {
+      errMsg: string
+    }
+
+    class InternalSymbol {}
+    type AnyObject = {
+      [x: string]: any
+    }
+    type AnyFunction = (...args: any[]) => any
+    namespace ICloud {
+      interface ICloudAPIParam<T = any> extends IAPIParam<T> {
+        config?: ICloudConfig
+      }
+      // === API: callFunction ===
+      export type CallFunctionData = AnyObject
+
+      export interface CallFunctionResult extends IAPISuccessParam {
+        result: any
+      }
+
+      export interface CallFunctionParam extends ICloudAPIParam<CallFunctionResult> {
+        name: string
+        data?: CallFunctionData
+        slow?: boolean
+      }
+      // === end ===
+
+      // === API: uploadFile ===
+      export interface UploadFileResult extends IAPISuccessParam {
+        fileID: string
+        statusCode: number
+      }
+
+      export interface UploadFileParam extends ICloudAPIParam<UploadFileResult> {
+        cloudPath: string
+        filePath: string
+        header?: AnyObject
+      }
+      // === end ===
+
+      // === API: downloadFile ===
+      export interface DownloadFileResult extends IAPISuccessParam {
+        tempFilePath: string
+        statusCode: number
+      }
+
+      export interface DownloadFileParam extends ICloudAPIParam<DownloadFileResult> {
+        fileID: string
+        cloudPath?: string
+      }
+      // === end ===
+
+      // === API: getTempFileURL ===
+      export interface GetTempFileURLResult extends IAPISuccessParam {
+        fileList: GetTempFileURLResultItem[]
+      }
+
+      export interface GetTempFileURLResultItem {
+        fileID: string
+        tempFileURL: string
+        maxAge: number
+        status: number
+        errMsg: string
+      }
+
+      export interface GetTempFileURLParam extends ICloudAPIParam<GetTempFileURLResult> {
+        fileList: string[]
+      }
+      // === end ===
+
+      // === API: deleteFile ===
+      interface DeleteFileResult extends IAPISuccessParam {
+        fileList: DeleteFileResultItem[]
+      }
+
+      interface DeleteFileResultItem {
+        fileID: string
+        status: number
+        errMsg: string
+      }
+
+      interface DeleteFileParam extends ICloudAPIParam<DeleteFileResult> {
+        fileList: string[]
+      }
+      // === end ===
+    }
+
+    namespace WXNS {
+      interface AnyObject {
+        [key: string]: any
+      }
+
+      interface IAPIParam<T> {
+        success?: (res: T) => void
+        fail?: (err: IAPIError) => void
+        complete?: (val: T | IAPIError) => void
+      }
+
+      interface CommonAPIResult {
+        errMsg: string
+      }
+
+      interface IAPIError {
+        errMsg: string
+      }
+
+      interface IProgressUpdateEvent {
+        progress: number
+        totalBytesWritten: number
+        totalBytesExpectedToWrite: number
+      }
+
+      interface operateWXData {
+        (param: any): void
+      }
+
+      interface uploadFile {
+        /**
+         * upload file
+         * @param param
+         */
+        (param: IUploadFileParam): IUploadFileTask
+      }
+
+      interface IUploadFileParam extends IAPIParam<IUploadFileSuccessResult> {
+        url: string
+        filePath: string
+        name: string
+        header?: AnyObject
+      }
+
+      interface IUploadFileSuccessResult extends CommonAPIResult {
+        data: string
+        statusCode: number
+      }
+
+      interface IUploadFileTask {
+        onProgressUpdate: (fn: (event: IProgressUpdateEvent) => void) => void
+        abort: AnyFunction
+      }
+
+      interface downloadFile {
+        /**
+         * download file
+         * @param param
+         */
+        (param: IDownloadFileParam): IDownloadFileTask
+      }
+
+      interface IDownloadFileParam extends IAPIParam<IDownloadFileSuccessResult> {
+        url: string
+        header?: AnyObject
+      }
+
+      interface IDownloadFileSuccessResult extends CommonAPIResult {
+        tempFilePath: string
+        statusCode: number
+      }
+
+      interface IDownloadFileTask {
+        onProgressUpdate: (fn: (event: IProgressUpdateEvent) => void) => void
+        abort: AnyFunction
+      }
+
+      interface request {
+        (param: IRequestParam): IRequestTask
+      }
+
+      interface IRequestParam extends IAPIParam<IRequestSuccessResult> {
+        url: string
+        data?: AnyObject | string | ArrayBuffer
+        header?: AnyObject
+        method?: string
+        dataType?: string
+        responseType?: string
+      }
+
+      interface IRequestSuccessResult {
+        data: AnyObject | string | ArrayBuffer
+        statusCode: number
+        header: AnyObject
+      }
+
+      interface IRequestTask {
+        abort: () => void
+      }
+
+      interface getFileInfo {
+        (param: IGetFileInfoParam): void
+      }
+
+      interface IGetFileInfoParam extends IAPIParam<IGetFileInfoSuccessResult> {
+        filePath: string
+        digestAlgorithm?: string
+      }
+
+      interface IGetFileInfoSuccessResult {
+        size: number
+        digest: string
+      }
+    }
+
+    // === Database ===
+    namespace DB {
+      /**
+       * The class of all exposed cloud database instances
+       */
+      export class Database {
+        public readonly config: ICloudConfig
+        public readonly command: DatabaseCommand
+        public readonly Geo: Geo
+        public readonly serverDate: () => ServerDate
+
+        private constructor()
+
+        collection(collectionName: string): CollectionReference
+      }
+
+      export class CollectionReference extends Query {
+        public readonly collectionName: string
+        public readonly database: Database
+
+        private constructor(name: string, database: Database)
+
+        doc(docId: string | number): DocumentReference
+
+        add(options: IAddDocumentOptions): Promise<IAddResult> | void
+      }
+
+      export class DocumentReference {
+        private constructor(docId: string | number, database: Database)
+
+        field(object: object): this
+
+        get(options?: IGetDocumentOptions): Promise<IQuerySingleResult> | void
+
+        set(options?: ISetSingleDocumentOptions): Promise<ISetResult> | void
+
+        update(options?: IUpdateSingleDocumentOptions): Promise<IUpdateResult> | void
+
+        remove(options?: IRemoveSingleDocumentOptions): Promise<IRemoveResult> | void
+      }
+
+      export class Query {
+        where(condition: IQueryCondition): Query
+
+        orderBy(fieldPath: string, order: string): Query
+
+        limit(max: number): Query
+
+        skip(offset: number): Query
+
+        field(object: object): Query
+
+        get(options?: IGetDocumentOptions): Promise<IQueryResult> & void
+
+        count(options?: ICountDocumentOptions): Promise<ICountResult> & void
+      }
+
+      export interface DatabaseCommand {
+        eq(val: any): DatabaseQueryCommand
+        neq(val: any): DatabaseQueryCommand
+        gt(val: any): DatabaseQueryCommand
+        gte(val: any): DatabaseQueryCommand
+        lt(val: any): DatabaseQueryCommand
+        lte(val: any): DatabaseQueryCommand
+        in(val: any[]): DatabaseQueryCommand
+        nin(val: any[]): DatabaseQueryCommand
+
+        and(...expressions: (DatabaseLogicCommand | IQueryCondition)[]): DatabaseLogicCommand
+        or(...expressions: (DatabaseLogicCommand | IQueryCondition)[]): DatabaseLogicCommand
+
+        set(val: any): DatabaseUpdateCommand
+        remove(): DatabaseUpdateCommand
+        inc(val: number): DatabaseUpdateCommand
+        mul(val: number): DatabaseUpdateCommand
+
+        push(...values: any[]): DatabaseUpdateCommand
+        pop(): DatabaseUpdateCommand
+        shift(): DatabaseUpdateCommand
+        unshift(...values: any[]): DatabaseUpdateCommand
+      }
+
+      export enum LOGIC_COMMANDS_LITERAL {
+        AND = 'and',
+        OR = 'or',
+        NOT = 'not',
+        NOR = 'nor'
+      }
+
+      export class DatabaseLogicCommand {
+        public fieldName: string | InternalSymbol
+        public operator: LOGIC_COMMANDS_LITERAL | string
+        public operands: any[]
+
+        _setFieldName(fieldName: string): DatabaseLogicCommand
+
+        and(...expressions: (DatabaseLogicCommand | IQueryCondition)[]): DatabaseLogicCommand
+        or(...expressions: (DatabaseLogicCommand | IQueryCondition)[]): DatabaseLogicCommand
+      }
+
+      export enum QUERY_COMMANDS_LITERAL {
+        EQ = 'eq',
+        NEQ = 'neq',
+        GT = 'gt',
+        GTE = 'gte',
+        LT = 'lt',
+        LTE = 'lte',
+        IN = 'in',
+        NIN = 'nin'
+      }
+
+      export class DatabaseQueryCommand extends DatabaseLogicCommand {
+        public operator: QUERY_COMMANDS_LITERAL | string
+
+        _setFieldName(fieldName: string): DatabaseQueryCommand
+
+        eq(val: any): DatabaseLogicCommand
+        neq(val: any): DatabaseLogicCommand
+        gt(val: any): DatabaseLogicCommand
+        gte(val: any): DatabaseLogicCommand
+        lt(val: any): DatabaseLogicCommand
+        lte(val: any): DatabaseLogicCommand
+        in(val: any[]): DatabaseLogicCommand
+        nin(val: any[]): DatabaseLogicCommand
+      }
+
+      export enum UPDATE_COMMANDS_LITERAL {
+        SET = 'set',
+        REMOVE = 'remove',
+        INC = 'inc',
+        MUL = 'mul',
+        PUSH = 'push',
+        POP = 'pop',
+        SHIFT = 'shift',
+        UNSHIFT = 'unshift'
+      }
+
+      export class DatabaseUpdateCommand {
+        public fieldName: string | InternalSymbol
+        public operator: UPDATE_COMMANDS_LITERAL
+        public operands: any[]
+
+        constructor(operator: UPDATE_COMMANDS_LITERAL, operands: any[], fieldName?: string | InternalSymbol)
+
+        _setFieldName(fieldName: string): DatabaseUpdateCommand
+      }
+
+      export class Batch {}
+
+      /**
+       * A contract that all API provider must adhere to
+       */
+      export class APIBaseContract<PROMISE_RETURN, CALLBACK_RETURN, PARAM extends IAPIParam, CONTEXT = any> {
+        getContext(param: PARAM): CONTEXT
+
+        /**
+         * In case of callback-style invocation, this function will be called
+         */
+        getCallbackReturn(param: PARAM, context: CONTEXT): CALLBACK_RETURN
+
+        getFinalParam<T extends PARAM>(param: PARAM, context: CONTEXT): T
+
+        run<T extends PARAM>(param: T): Promise<PROMISE_RETURN>
+      }
+
+      export interface GeoPointConstructor {
+        new (longitude: number, latitide: number): GeoPoint
+      }
+
+      export interface Geo {
+        Point: {
+          new (longitude: number, latitide: number): GeoPoint
+          (longitude: number, latitide: number): GeoPoint
+        }
+      }
+
+      export abstract class GeoPoint {
+        public longitude: number
+        public latitude: number
+
+        constructor(longitude: number, latitude: number)
+
+        toJSON(): object
+        toString(): string
+      }
+
+      export interface IServerDateOptions {
+        offset: number
+      }
+
+      export abstract class ServerDate {
+        public readonly options: IServerDateOptions
+        constructor(options?: IServerDateOptions)
+      }
+
+      export type DocumentId = string | number
+
+      export interface IDocumentData {
+        _id?: DocumentId
+        [key: string]: any
+      }
+
+      export interface IDBAPIParam extends IAPIParam {}
+
+      export interface IAddDocumentOptions extends IDBAPIParam {
+        data: IDocumentData
+      }
+
+      export interface IGetDocumentOptions extends IDBAPIParam {}
+
+      export interface ICountDocumentOptions extends IDBAPIParam {}
+
+      export interface IUpdateDocumentOptions extends IDBAPIParam {
+        data: IUpdateCondition
+      }
+
+      export interface IUpdateSingleDocumentOptions extends IDBAPIParam {
+        data: IUpdateCondition
+      }
+
+      export interface ISetDocumentOptions extends IDBAPIParam {
+        data: IUpdateCondition
+      }
+
+      export interface ISetSingleDocumentOptions extends IDBAPIParam {
+        data: IUpdateCondition
+      }
+
+      export interface IRemoveDocumentOptions extends IDBAPIParam {
+        query: IQueryCondition
+      }
+
+      export interface IRemoveSingleDocumentOptions extends IDBAPIParam {}
+
+      export interface IQueryCondition {
+        [key: string]: any
+      }
+
+      export type IStringQueryCondition = string
+
+      export interface IQueryResult extends IAPISuccessParam {
+        data: IDocumentData[]
+      }
+
+      export interface IQuerySingleResult extends IAPISuccessParam {
+        data: IDocumentData
+      }
+
+      export interface IUpdateCondition {
+        [key: string]: any
+      }
+
+      export type IStringUpdateCondition = string
+
+      export interface ISetCondition {}
+
+      export interface IAddResult extends IAPISuccessParam {
+        _id: DocumentId
+      }
+
+      export interface IUpdateResult extends IAPISuccessParam {
+        stats: {
+          updated: number
+          // created: number,
+        }
+      }
+
+      export interface ISetResult extends IAPISuccessParam {
+        _id: DocumentId
+        stats: {
+          updated: number
+          created: number
+        }
+      }
+
+      export interface IRemoveResult extends IAPISuccessParam {
+        stats: {
+          removed: number
+        }
+      }
+
+      export interface ICountResult extends IAPISuccessParam {
+        total: number
+      }
+    }
+    function init(OBJECT?: ICloudConfig): void
+
+    function callFunction(param: ICloud.CallFunctionParam): Promise<ICloud.CallFunctionResult> & void
+    function uploadFile(param: ICloud.UploadFileParam): Promise<ICloud.UploadFileResult> & WXNS.IUploadFileTask
+    function downloadFile(param: ICloud.DownloadFileParam): Promise<ICloud.DownloadFileResult> & WXNS.IDownloadFileTask
+    function getTempFileURL(param: ICloud.GetTempFileURLParam): Promise<ICloud.GetTempFileURLResult> & void
+    function deleteFile(param: ICloud.DeleteFileParam): Promise<ICloud.DeleteFileResult> & void
+
+    function database(config?: ICloudConfig): DB.Database
+  }
+
+  interface OnDeviceMotionChangeCallbackResult {
+    /** 当 手机坐标 X/Y 和 地球 X/Y 重合时，绕着 Z 轴转动的夹角为 alpha，范围值为 [0, 2*PI)。逆时针转动为正。 */
+    alpha: number
+    /** 当手机坐标 Y/Z 和地球 Y/Z 重合时，绕着 X 轴转动的夹角为 beta。范围值为 [-1*PI, PI) 。顶部朝着地球表面转动为正。也有可能朝着用户为正。 */
+    beta: number
+    /** 当手机 X/Z 和地球 X/Z 重合时，绕着 Y 轴转动的夹角为 gamma。范围值为 [-1*PI/2, PI/2)。右边朝着地球表面转动为正。 */
+    gamma: number
+  }
+
+  /** 设备方向变化事件的回调函数 */
+  type OnDeviceMotionChangeCallback = (
+    result: OnDeviceMotionChangeCallbackResult,
+  ) => void
+
+  /** [wx.onDeviceMotionChange(function callback)](https://developers.weixin.qq.com/miniprogram/dev/api/device/motion/wx.onDeviceMotionChange.html)
+   *
+   * 监听设备方向变化事件。频率根据 [wx.startDeviceMotionListening()](https://developers.weixin.qq.com/miniprogram/dev/api/device/motion/wx.startDeviceMotionListening.html) 的 interval 参数。可以使用 [wx.stopDeviceMotionListening()](https://developers.weixin.qq.com/miniprogram/dev/api/device/motion/wx.stopDeviceMotionListening.html) 停止监听。
+   *
+   * 最低基础库： `2.3.0`
+   */
+  function onDeviceMotionChange(
+    /** 设备方向变化事件的回调函数 */
+    callback: OnDeviceMotionChangeCallback
+  ): void
+
+  interface GeneralCallbackResult {
+    errMsg: string
+}
+
+  type StartDeviceMotionListeningCompleteCallback = (
+    res: GeneralCallbackResult,
+  ) => void
+  /** 接口调用失败的回调函数 */
+  type StartDeviceMotionListeningFailCallback = (
+      res: GeneralCallbackResult,
+  ) => void
+  /** 接口调用成功的回调函数 */
+  type StartDeviceMotionListeningSuccessCallback = (
+      res: GeneralCallbackResult,
+  ) => void
+
+  interface StartDeviceMotionListeningOption {
+    /** 接口调用结束的回调函数（调用成功、失败都会执行） */
+    complete?: StartDeviceMotionListeningCompleteCallback
+    /** 接口调用失败的回调函数 */
+    fail?: StartDeviceMotionListeningFailCallback
+    /** 监听设备方向的变化回调函数的执行频率
+     *
+     * 可选值：
+     * - 'game': 适用于更新游戏的回调频率，在 20ms/次 左右;
+     * - 'ui': 适用于更新 UI 的回调频率，在 60ms/次 左右;
+     * - 'normal': 普通的回调频率，在 200ms/次 左右; */
+    interval?: 'game' | 'ui' | 'normal'
+    /** 接口调用成功的回调函数 */
+    success?: StartDeviceMotionListeningSuccessCallback
+  }
+
+  /** [wx.startDeviceMotionListening(Object object)](https://developers.weixin.qq.com/miniprogram/dev/api/device/motion/wx.startDeviceMotionListening.html)
+   *
+   * 开始监听设备方向的变化。
+   *
+   * 最低基础库： `2.3.0`
+   */
+  function startDeviceMotionListening(
+      option: StartDeviceMotionListeningOption,
+  ): void
+
+  /** 接口调用结束的回调函数（调用成功、失败都会执行） */
+  type StopDeviceMotionListeningCompleteCallback = (
+    res: GeneralCallbackResult,
+  ) => void
+  /** 接口调用失败的回调函数 */
+  type StopDeviceMotionListeningFailCallback = (
+      res: GeneralCallbackResult,
+  ) => void
+  /** 接口调用成功的回调函数 */
+  type StopDeviceMotionListeningSuccessCallback = (
+      res: GeneralCallbackResult,
+  ) => void
+
+  interface StopDeviceMotionListeningOption {
+    /** 接口调用结束的回调函数（调用成功、失败都会执行） */
+    complete?: StopDeviceMotionListeningCompleteCallback
+    /** 接口调用失败的回调函数 */
+    fail?: StopDeviceMotionListeningFailCallback
+    /** 接口调用成功的回调函数 */
+    success?: StopDeviceMotionListeningSuccessCallback
+}
+
+  /** [wx.stopDeviceMotionListening(Object object)](https://developers.weixin.qq.com/miniprogram/dev/api/device/motion/wx.stopDeviceMotionListening.html)
+   *
+   * 停止监听设备方向的变化。
+   *
+   * 最低基础库： `2.3.0`
+   */
+  function stopDeviceMotionListening(
+    option?: StopDeviceMotionListeningOption,
+  ): void
 }

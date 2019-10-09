@@ -1,16 +1,12 @@
-import { Component } from '@tarojs/taro-h5';
-import Nerv from 'nervjs';
+import Taro from '@tarojs/taro-h5'
+import Nerv, { nextTick } from 'nervjs'
 
-import createWrappedComponent from './createWrappedComponent';
-import { ComponentLoader, Location } from '../utils/types';
-import { tryToCall } from '../utils/index';
+import { tryToCall } from '../utils'
+import { Location, RouteObj } from '../utils/types'
+import createWrappedComponent from './createWrappedComponent'
 
-interface RouteProps {
-  path: string;
-  componentLoader: ComponentLoader;
+type RouteProps = RouteObj & {
   currentLocation: Location;
-  isIndex: boolean;
-  key?: string;
   k: number;
   collectComponent: Function;
 }
@@ -36,7 +32,7 @@ const getScroller = () => {
 }
 let scroller
 
-class Route extends Component<RouteProps, {}> {
+class Route extends Taro.Component<RouteProps, {}> {
   matched = false;
   wrappedComponent;
   componentRef;
@@ -50,46 +46,49 @@ class Route extends Component<RouteProps, {}> {
   }
 
   computeMatch (currentLocation) {
-    const pathname = currentLocation.pathname;
+    const path = currentLocation.path;
     const key = currentLocation.state.key;
     const isIndex = this.props.isIndex;
-    if (isIndex && pathname === '/') return true
-    return key === this.props.key
+    if (key !== undefined) {
+      return key === this.props.key
+    } else {
+      return isIndex && path === '/'
+    }
   }
 
-  getWrapRef = (ref) => {
-    this.containerRef = ref
+  getWrapRef = ref => {
+    if (ref) this.containerRef = ref
   }
 
-  getRef = (ref) => {
-    this.componentRef = ref
+  getRef = ref => {
+    if (ref) this.componentRef = ref
     this.props.collectComponent(ref, this.props.k)
   }
 
   updateComponent (props = this.props) {
     props.componentLoader()
       .then(({ default: component }) => {
-        let WrappedComponent = createWrappedComponent(component)
+        if (!component) {
+          throw Error(`Received a falsy component for route "${props.path}". Forget to export it?`)
+        }
+        const WrappedComponent = createWrappedComponent(component)
         this.wrappedComponent = WrappedComponent
         this.forceUpdate()
+      }).catch((e) => {
+        console.error(e)
       })
-  }
-
-  componentWillMount () {
-    this.updateComponent()
   }
 
   componentDidMount () {
     scroller = scroller || getScroller()
     scroller.set(0)
+    this.updateComponent()
   }
 
   componentWillReceiveProps (nProps, nContext) {
     const lastMatched = this.matched
     const nextMatched = this.computeMatch(nProps.currentLocation)
-    const lastPath = this.props.path
-    const nextPath = nProps.path
-    const isRedirect = lastPath !== nextPath
+    const isRedirect = nProps.isRedirect
 
     if (isRedirect) {
       this.updateComponent(nProps)
@@ -99,18 +98,23 @@ class Route extends Component<RouteProps, {}> {
 
     this.matched = nextMatched
 
+    
     if (nextMatched) {
-      this.showPage()
       if (!isRedirect) {
-        scroller = scroller || getScroller()
-        scroller.set(this.scrollPos)
+        nextTick(() => {
+          this.showPage()
+          scroller = scroller || getScroller()
+          scroller.set(this.scrollPos)
+        })
         tryToCall(this.componentRef.componentDidShow, this.componentRef)
       }
     } else {
       scroller = scroller || getScroller()
       this.scrollPos = scroller.get()
-      this.hidePage()
-      tryToCall(this.componentRef.componentDidHide, this.componentRef)
+      nextTick(() => {
+        this.hidePage()
+        tryToCall(this.componentRef.componentDidHide, this.componentRef)
+      })
     }
   }
 
@@ -121,11 +125,17 @@ class Route extends Component<RouteProps, {}> {
 
   showPage () {
     const dom = this.containerRef
+    if (!dom) {
+      return console.error(`showPage:fail Received a falsy component for route "${this.props.path}". Forget to export it?`)
+    }
     dom.style.display = 'block'
   }
 
   hidePage () {
     const dom = this.containerRef
+    if (!dom) {
+      return console.error(`hidePage:fail Received a falsy component for route "${this.props.path}". Forget to export it?`)
+    }
     dom.style.display = 'none'
   }
 
@@ -134,7 +144,10 @@ class Route extends Component<RouteProps, {}> {
 
     const WrappedComponent = this.wrappedComponent
     return (
-      <div className="taro_page" ref={this.getWrapRef}>
+      <div
+        className="taro_page"
+        ref={this.getWrapRef}
+        style={"min-height: 100%"}>
         <WrappedComponent ref={this.getRef} />
       </div>
     )

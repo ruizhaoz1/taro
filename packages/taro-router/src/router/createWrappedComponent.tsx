@@ -1,19 +1,21 @@
-import { tryToCall } from '../utils/index'
+import { tryToCall } from '../utils'
 import * as Types from '../utils/types'
 
 const createWrappedComponent = (component: Types.PageComponent) => {
   class WrappedComponent extends component {
+    config: { [key: string]: any };
+    wrappedInstance: Taro.Component<any, any>;
+
     constructor (props, context) {
       super(props, context)
 
       const originalComponentDidShow = this.componentDidShow
-      const config = this['config'] || {}
-      let navigationBarTitleText = config.navigationBarTitleText
-      const newComponentDidShow = () => {
-        tryToCall(originalComponentDidShow, this)
+      const newComponentDidShow = function () {
+        const { navigationBarTitleText } = this.config || { navigationBarTitleText: null }
         if (navigationBarTitleText) {
           document.title = navigationBarTitleText
         }
+        tryToCall(originalComponentDidShow, this)
       }
       this.componentDidShow = newComponentDidShow
     }

@@ -2,8 +2,11 @@ import {
   onAndSyncApis,
   noPromiseApis,
   otherApis,
-  initPxTransform
+  initPxTransform,
+  Link
 } from '@tarojs/taro'
+import { cacheDataSet, cacheDataGet } from './data-cache'
+import { queryToJson, getUniqueKey } from './util'
 
 const RequestQueue = {
   MAX_REQUEST: 5,
@@ -33,6 +36,12 @@ const RequestQueue = {
     }
   }
 }
+
+function taroInterceptor (chain) {
+  return request(chain.requestParams)
+}
+
+const link = new Link(taroInterceptor)
 
 function request (options) {
   options = options || {}
@@ -73,6 +82,8 @@ function request (options) {
 
 function processApis (taro) {
   const weApis = Object.assign({ }, onAndSyncApis, noPromiseApis, otherApis)
+  const preloadPrivateKey = '__preload_'
+  const preloadInitedComponent = '$preloadComponent'
   Object.keys(weApis).forEach(key => {
     if (!(key in tt)) {
       taro[key] = () => {
@@ -91,6 +102,27 @@ function processApis (taro) {
           }
           return tt[key](options)
         }
+
+        if (key === 'navigateTo' || key === 'redirectTo' || key === 'switchTab') {
+          let url = obj['url'] ? obj['url'].replace(/^\//, '') : ''
+          if (url.indexOf('?') > -1) url = url.split('?')[0]
+
+          const Component = cacheDataGet(url)
+          if (Component) {
+            const component = new Component()
+            if (component.componentWillPreload) {
+              const cacheKey = getUniqueKey()
+              const MarkIndex = obj.url.indexOf('?')
+              const hasMark = MarkIndex > -1
+              const urlQueryStr = hasMark ? obj.url.substring(MarkIndex + 1, obj.url.length) : ''
+              const params = queryToJson(urlQueryStr)
+              obj.url += (hasMark ? '&' : '?') + `${preloadPrivateKey}=${cacheKey}`
+              cacheDataSet(cacheKey, component.componentWillPreload(params))
+              cacheDataSet(preloadInitedComponent, component)
+            }
+          }
+        }
+
         const p = new Promise((resolve, reject) => {
           ['fail', 'success', 'complete'].forEach((k) => {
             obj[k] = (res) => {
@@ -133,14 +165,27 @@ function processApis (taro) {
       }
     } else {
       taro[key] = (...args) => {
-        return tt[key].apply(tt, args)
+        const argsLen = args.length
+        const newArgs = args.concat()
+        const lastArg = newArgs[argsLen - 1]
+        if (lastArg && lastArg.isTaroComponent && lastArg.$scope) {
+          newArgs.splice(argsLen - 1, 1, lastArg.$scope)
+        }
+        return tt[key].apply(tt, newArgs)
       }
     }
   })
 }
 
 function pxTransform (size) {
-  const { designWidth, deviceRatio } = this.config
+  const {
+    designWidth = 750,
+    deviceRatio = {
+      '640': 2.34 / 2,
+      '750': 1,
+      '828': 1.81 / 2
+    }
+  } = this.config || {}
   if (!(designWidth in deviceRatio)) {
     throw new Error(`deviceRatio 配置中不存在 ${designWidth} 的设置！`)
   }
@@ -149,7 +194,9 @@ function pxTransform (size) {
 
 export default function initNativeApi (taro) {
   processApis(taro)
-  taro.request = request
+  taro.request = link.request.bind(link)
+  taro.addInterceptor = link.addInterceptor.bind(link)
+  taro.cleanInterceptors = link.cleanInterceptors.bind(link)
   taro.getCurrentPages = getCurrentPages
   taro.getApp = getApp
   taro.initPxTransform = initPxTransform.bind(taro)
